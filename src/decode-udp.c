@@ -111,6 +111,15 @@ int DecodeUDP(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
         return TM_ECODE_OK;
     }
 
+    /* Handle GTP if configured */
+    if (DecodeGtpEnabledForPort(p->sp, p->dp) &&
+            unlikely(DecodeGtp(tv, dtv, p, p->payload, p->payload_len) == TM_ECODE_OK)) {
+        /* Here we have a GTP packet and don't need to handle app
+         * layer */
+        FlowSetupPacket(p);
+        return TM_ECODE_OK;
+    }
+
     FlowSetupPacket(p);
 
     return TM_ECODE_OK;

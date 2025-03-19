@@ -63,6 +63,7 @@ enum PktSrcEnum {
     PKT_SRC_DETECT_RELOAD_FLUSH,
     PKT_SRC_CAPTURE_TIMEOUT,
     PKT_SRC_DECODER_GENEVE,
+    PKT_SRC_DECODER_GTP,
     PKT_SRC_SHUTDOWN_FLUSH,
 };
 
@@ -704,6 +705,7 @@ typedef struct DecodeThreadVars_
     uint16_t counter_ppp;
     uint16_t counter_geneve;
     uint16_t counter_gre;
+    uint16_t counter_gtp;
     uint16_t counter_vlan;
     uint16_t counter_vlan_qinq;
     uint16_t counter_vlan_qinqinq;
@@ -867,7 +869,7 @@ int DecodeMPLS(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint
 int DecodeERSPAN(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeERSPANTypeI(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeCHDLC(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
-int DecodeGTP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+int DecodeGtp(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeTEMPLATE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeNSH(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 

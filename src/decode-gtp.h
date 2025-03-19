@@ -25,13 +25,9 @@
 #ifndef __DECODE_GTP_H__
 #define __DECODE_GTP_H__
 
-/* Header layout. Keep things like alignment and endianness in
- * mind while constructing this. */
 
-typedef struct GtpHdr_ {
-    uint8_t proto;
-    uint8_t pad0;
-    uint16_t pad1;
-} __attribute__((__packed__)) GtpHdr;
+void DecodeGtpRegisterTests(void);
+void DecodeGtpConfig(void);
+bool DecodeGtpEnabledForPort(const uint16_t sp, const uint16_t dp);
 
 #endif /* __DECODE_GTP_H__ */

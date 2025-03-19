@@ -61,6 +61,7 @@
 #include "decode-geneve.h"
 #include "decode-erspan.h"
 #include "decode-teredo.h"
+#include "decode-gtp.h"
 
 #include "util-hash.h"
 #include "util-hash-string.h"
@@ -552,6 +553,7 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     dtv->counter_pppoe = StatsRegisterCounter("decoder.pppoe", tv);
     dtv->counter_geneve = StatsRegisterCounter("decoder.geneve", tv);
     dtv->counter_gre = StatsRegisterCounter("decoder.gre", tv);
+    dtv->counter_gtp = StatsRegisterCounter("decoder.gtp", tv);
     dtv->counter_vlan = StatsRegisterCounter("decoder.vlan", tv);
     dtv->counter_vlan_qinq = StatsRegisterCounter("decoder.vlan_qinq", tv);
     dtv->counter_vlan_qinqinq = StatsRegisterCounter("decoder.vlan_qinqinq", tv);
@@ -768,6 +770,9 @@ const char *PktSrcToString(enum PktSrcEnum pkt_src)
         case PKT_SRC_DECODER_GENEVE:
             pkt_src_str = "geneve encapsulation";
             break;
+        case PKT_SRC_DECODER_GTP:
+            pkt_src_str = "gtp encapsulation";
+            break;
         case PKT_SRC_DECODER_VXLAN:
             pkt_src_str = "vxlan encapsulation";
             break;
@@ -922,6 +927,7 @@ void DecodeGlobalConfig(void)
     DecodeGeneveConfig();
     DecodeVXLANConfig();
     DecodeERSPANConfig();
+    DecodeGTPConfig();
     intmax_t value = 0;
     if (ConfGetInt("decoder.max-layers", &value) == 1) {
         if (value < 0 || value > UINT8_MAX) {

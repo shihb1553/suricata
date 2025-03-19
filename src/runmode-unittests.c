@@ -113,6 +113,7 @@
 #include "decode-raw.h"
 #include "decode-vntag.h"
 #include "decode-vxlan.h"
+#include "decode-gtp.h"
 
 #include "output-json-stats.h"
 
@@ -167,6 +168,7 @@ static void RegisterUnittests(void)
     DecodeESPRegisterTests();
     DecodeMPLSRegisterTests();
     DecodeNSHRegisterTests();
+    DecodeGTPRegisterTests();
     AppLayerProtoDetectUnittestsRegister();
     ConfRegisterTests();
     ConfYamlRegisterTests();
