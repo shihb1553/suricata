@@ -49,8 +49,11 @@
 #include "app-layer-htp-mem.h"
 #include "util-exception-policy.h"
 
+#include "ray-plugin.h"
+
 extern bool g_eps_stats_counters;
 extern bool g_stats_eps_per_app_proto_errors;
+
 /**
  * \brief This is for the app layer in general and it contains per thread
  *        context relevant to both the alpd and alp.
@@ -447,6 +450,8 @@ static int TCPProtoDetect(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx,
             f->alproto = *alproto;
         }
 
+        RayPluginCallPointAppDetectEnd(tv, p);
+
         StreamTcpSetStreamFlagAppProtoDetectionCompleted(*stream);
         TcpSessionSetReassemblyDepth(ssn,
                 AppLayerParserGetStreamDepth(f));
@@ -561,6 +566,7 @@ static int TCPProtoDetect(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx,
         int r = AppLayerParserParse(tv, app_tctx->alp_tctx, f, f->alproto,
                 flags, data, data_len);
         PACKET_PROFILING_APP_END(app_tctx, f->alproto);
+        RayPluginCallPointAppParse(tv, p);
         p->app_update_direction = (uint8_t)dir;
         if (r != 1) {
             StreamTcpUpdateAppLayerProgress(ssn, direction, data_len);
@@ -649,6 +655,7 @@ static int TCPProtoDetect(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx,
                             f->alproto, flags,
                             data, data_len);
                     PACKET_PROFILING_APP_END(app_tctx, f->alproto);
+                    RayPluginCallPointAppParse(tv, p);
                     p->app_update_direction = (uint8_t)dir;
                     if (r != 1) {
                         StreamTcpUpdateAppLayerProgress(ssn, direction, data_len);
@@ -759,6 +766,7 @@ int AppLayerHandleTCPData(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx, Packet
         r = AppLayerParserParse(tv, app_tctx->alp_tctx, f, f->alproto,
                 flags, data, data_len);
         PACKET_PROFILING_APP_END(app_tctx, f->alproto);
+        RayPluginCallPointAppParse(tv, p);
         p->app_update_direction = (uint8_t)dir;
         /* ignore parser result for gap */
         StreamTcpUpdateAppLayerProgress(ssn, direction, data_len);
@@ -845,6 +853,7 @@ int AppLayerHandleTCPData(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx, Packet
             r = AppLayerParserParse(tv, app_tctx->alp_tctx, f, f->alproto,
                                     flags, data, data_len);
             PACKET_PROFILING_APP_END(app_tctx, f->alproto);
+            RayPluginCallPointAppParse(tv, p);
             p->app_update_direction = (uint8_t)dir;
             if (r != 1) {
                 StreamTcpUpdateAppLayerProgress(ssn, direction, data_len);
@@ -949,6 +958,9 @@ int AppLayerHandleUdp(ThreadVars *tv, AppLayerThreadCtx *tctx, Packet *p, Flow *
                     f->alproto = *alproto;
                 }
         }
+
+        RayPluginCallPointAppDetectEnd(tv, p);
+
         if (*alproto_otherdir == ALPROTO_UNKNOWN) {
             if (f->alproto == ALPROTO_UNKNOWN) {
                 // so as to increase stat about .app_layer.flow.failed_udp
@@ -971,6 +983,7 @@ int AppLayerHandleUdp(ThreadVars *tv, AppLayerThreadCtx *tctx, Packet *p, Flow *
             r = AppLayerParserParse(tv, tctx->alp_tctx, f, f->alproto,
                                     flags, p->payload, p->payload_len);
             PACKET_PROFILING_APP_END(tctx, f->alproto);
+            RayPluginCallPointAppParse(tv, p);
             p->app_update_direction = (uint8_t)UPDATE_DIR_PACKET;
         }
         PACKET_PROFILING_APP_STORE(tctx, p);
@@ -987,6 +1000,7 @@ int AppLayerHandleUdp(ThreadVars *tv, AppLayerThreadCtx *tctx, Packet *p, Flow *
         r = AppLayerParserParse(tv, tctx->alp_tctx, f, f->alproto,
                 flags, p->payload, p->payload_len);
         PACKET_PROFILING_APP_END(tctx, f->alproto);
+        RayPluginCallPointAppParse(tv, p);
         PACKET_PROFILING_APP_STORE(tctx, p);
         p->app_update_direction = (uint8_t)UPDATE_DIR_PACKET;
     }
