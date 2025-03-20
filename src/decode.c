@@ -53,6 +53,7 @@
 #include "packet.h"
 #include "flow.h"
 #include "flow-storage.h"
+#include "packet-storage.h"
 #include "tmqh-packetpool.h"
 #include "app-layer.h"
 #include "output.h"
@@ -68,6 +69,8 @@
 #include "util-profiling.h"
 #include "util-validate.h"
 #include "action-globals.h"
+
+#include "ray-plugin.h"
 
 uint32_t default_packet_size = 0;
 extern bool stats_decoder_events;
@@ -149,6 +152,8 @@ void PacketDecodeFinalize(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
     if (p->flags & PKT_IS_INVALID) {
         StatsIncr(tv, dtv->counter_invalid);
     }
+
+    RayPluginCallPointDecode(tv, p);
 }
 
 void PacketUpdateEngineEventCounters(ThreadVars *tv,
@@ -172,7 +177,9 @@ void PacketUpdateEngineEventCounters(ThreadVars *tv,
  */
 Packet *PacketGetFromAlloc(void)
 {
-    Packet *p = SCCalloc(1, SIZE_OF_PACKET);
+    size_t size = default_packet_size + sizeof(Packet) + PacketStorageSize();
+
+    Packet *p = SCCalloc(1, size);
     if (unlikely(p == NULL)) {
         return NULL;
     }

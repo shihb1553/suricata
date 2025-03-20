@@ -85,6 +85,7 @@
 
 #include "respond-reject.h"
 
+#include "ray-plugin.h"
 #include "runmode-af-packet.h"
 #include "runmode-af-xdp.h"
 #include "runmode-netmap.h"
@@ -380,6 +381,8 @@ static void GlobalsDestroy(SCInstance *suri)
     DatasetsSave();
     DatasetsDestroy();
     TagDestroyCtx();
+
+    RayPluginDestroy();
 
     LiveDeviceListClean();
     OutputDeregisterAll();
@@ -2684,6 +2687,10 @@ int PostConfLoadedSetup(SCInstance *suri)
 #ifdef HAVE_PLUGINS
     SCPluginsLoad(suri->capture_plugin_name, suri->capture_plugin_args);
 #endif
+
+//#ifdef HAVE_RAY_PLUGINS
+    RayPluginLoad();
+//#endif
 
     LiveDeviceFinalize(); // must be after EBPF extension registration
 

@@ -34,6 +34,8 @@
 #include "util-magic.h"
 #include "util-path.h"
 
+#include "ray-plugin.h"
+
 bool g_filedata_logger_enabled = false;
 
 /* logger instance, a module + a output ctx,
@@ -136,6 +138,8 @@ void OutputFiledataLogFfc(ThreadVars *tv, OutputFiledataLoggerThreadData *td, Pa
     for (File *ff = files.fc->head; ff != NULL; ff = ff->next) {
         FileApplyTxFlags(txd, dir, ff);
         FilePrintFlags(ff);
+
+        RayPluginCallPointOutputFileData(tv, p, ff);
 
         uint8_t file_flags = call_flags;
 #ifdef HAVE_MAGIC
