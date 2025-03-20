@@ -86,6 +86,7 @@ noinst_HEADERS = \
 	decode-tcp.h \
 	decode-template.h \
 	decode-teredo.h \
+	decode-gtp.h \
 	decode-udp.h \
 	decode-vlan.h \
 	decode-vntag.h \
@@ -706,6 +707,7 @@ libsuricata_c_a_SOURCES = \
 	decode-tcp.c \
 	decode-template.c \
 	decode-teredo.c \
+	decode-gtp.c \
 	decode-udp.c \
 	decode-vlan.c \
 	decode-vntag.c \

@@ -168,7 +168,7 @@ static void RegisterUnittests(void)
     DecodeESPRegisterTests();
     DecodeMPLSRegisterTests();
     DecodeNSHRegisterTests();
-    DecodeGTPRegisterTests();
+    DecodeGtpRegisterTests();
     AppLayerProtoDetectUnittestsRegister();
     ConfRegisterTests();
     ConfYamlRegisterTests();

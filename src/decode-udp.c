@@ -36,6 +36,7 @@
 #include "decode-udp.h"
 #include "decode-teredo.h"
 #include "decode-vxlan.h"
+#include "decode-gtp.h"
 #include "decode-events.h"
 #include "util-unittest.h"
 #include "util-debug.h"

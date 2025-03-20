@@ -151,7 +151,7 @@ int DecodeGtp(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 {
     DEBUG_VALIDATE_BUG_ON(pkt == NULL);
 
-    uint16_t eth_type, hdr_len;
+    uint16_t hdr_len;
     int decode_tunnel_proto = DECODE_TUNNEL_UNSET;
     uint8_t ip_ver;
 
@@ -266,7 +266,7 @@ static int DecodeGtpTest01(void)
 
     Packet *tp = PacketDequeueNoLock(&tv.decode_pq);
     FAIL_IF(tp->udph == NULL);
-    FAIL_IF_NOT(tp->sp == 53);
+    FAIL_IF_NOT(tp->dp == 53);
 
     FlowShutdown();
     PacketFree(p);
