@@ -56,6 +56,8 @@
 #include "flow-spare-pool.h"
 #include "flow-worker.h"
 
+#include "ray-plugin.h"
+
 typedef DetectEngineThreadCtx *DetectEngineThreadCtxPtr;
 
 typedef struct FlowTimeoutCounters {
@@ -601,6 +603,8 @@ static TmEcode FlowWorker(ThreadVars *tv, Packet *p, void *data)
 
     SCLogDebug("packet %"PRIu64" has flow? %s", p->pcap_cnt, p->flow ? "yes" : "no");
 
+    RayPluginCallPointFlowWorker(tv, p);
+
     /* handle TCP and app layer */
     if (p->flow) {
         if (PKT_IS_TCP(p)) {
@@ -614,6 +618,7 @@ static TmEcode FlowWorker(ThreadVars *tv, Packet *p, void *data)
                     ((PKT_IS_TOSERVER(p) && (p->flowflags & FLOW_PKT_TOSERVER_FIRST)) ||
                             (PKT_IS_TOCLIENT(p) && (p->flowflags & FLOW_PKT_TOCLIENT_FIRST)))) {
                 DisableDetectFlowFileFlags(p->flow);
+                RayPluginCallPointDetectNone(tv, p);
             }
 
             FlowWorkerStreamTCPUpdate(tv, fw, p, detect_thread, false);

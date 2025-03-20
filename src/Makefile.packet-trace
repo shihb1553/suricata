@@ -1,0 +1,18 @@
+SRCS :=		packet-trace.c
+
+LIBSURICATA_CONFIG ?= libsuricata-config
+
+CPPFLAGS +=	`$(LIBSURICATA_CONFIG) --cflags`
+CPPFLAGS +=	-DSURICATA_PLUGIN -I.
+CPPFLAGS +=	"-D__SCFILENAME__=\"$(*F)\""
+
+OBJS :=		$(SRCS:.c=.o)
+
+packet-trace.so: $(OBJS)
+	$(CC) -g -O0 -fPIC -shared -o $@ $(OBJS)
+
+%.o: %.c
+	$(CC) -g -O0 -fPIC $(CPPFLAGS) -c -o $@ $<
+
+clean:
+	rm -f *.o *.so *~

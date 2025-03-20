@@ -19,6 +19,7 @@
 #include "pkt-var.h"
 #include "flow.h"
 #include "host.h"
+#include "packet-storage.h"
 #include "util-profiling.h"
 #include "util-validate.h"
 #include "action-globals.h"
@@ -72,6 +73,8 @@ void PacketReleaseRefs(Packet *p)
     FlowDeReference(&p->flow);
     HostDeReference(&p->host_src);
     HostDeReference(&p->host_dst);
+
+    PacketFreeStorage(p);       // double call free is safe
 }
 
 /**
