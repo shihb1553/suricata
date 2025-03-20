@@ -245,8 +245,6 @@ void PacketPoolInit(void)
     SC_ATOMIC_INIT(my_pool->return_stack.sync_now);
 
     /* pre allocate packets */
-    SCLogDebug("preallocating packets... packet size %" PRIuMAX "",
-               (uintmax_t)SIZE_OF_PACKET);
     int i = 0;
     for (i = 0; i < max_pending_packets; i++) {
         Packet *p = PacketGetFromAlloc();
@@ -255,9 +253,6 @@ void PacketPoolInit(void)
         }
         PacketPoolStorePacket(p);
     }
-
-    //SCLogInfo("preallocated %"PRIiMAX" packets. Total memory %"PRIuMAX"",
-    //        max_pending_packets, (uintmax_t)(max_pending_packets*SIZE_OF_PACKET));
 }
 
 void PacketPoolDestroy(void)

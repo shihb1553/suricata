@@ -441,8 +441,11 @@ noinst_HEADERS = \
 	output-tx.h \
 	packet.h \
 	packet-queue.h \
+	packet-storage.h \
 	pkt-var.h \
 	queue.h \
+	ray-plugin.h \
+	ray-plugin-ext.h \
 	reputation.h \
 	respond-reject.h \
 	respond-reject-libnet11.h \
@@ -1062,7 +1065,9 @@ libsuricata_c_a_SOURCES = \
 	output-tx.c \
 	packet.c \
 	packet-queue.c \
+	packet-storage.c \
 	pkt-var.c \
+	ray-plugin.c \
 	reputation.c \
 	respond-reject.c \
 	respond-reject-libnet11.c \

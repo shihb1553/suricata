@@ -89,6 +89,8 @@
 #include "output-json-bittorrent-dht.h"
 #include "output-filestore.h"
 
+#include "ray-plugin.h"
+
 typedef struct RootLogger_ {
     OutputLogFunc LogFunc;
     ThreadInitFunc ThreadInit;
@@ -885,6 +887,8 @@ TmEcode OutputLoggerLog(ThreadVars *tv, Packet *p, void *thread_data)
         logger = TAILQ_NEXT(logger, entries);
         thread_store_node = TAILQ_NEXT(thread_store_node, entries);
     }
+
+    RayPluginCallPointOutput(tv, p);
     return TM_ECODE_OK;
 }
 

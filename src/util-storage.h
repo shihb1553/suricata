@@ -32,6 +32,7 @@ typedef enum StorageEnum_ {
     STORAGE_IPPAIR,
     STORAGE_DEVICE,
 
+    STORAGE_PACKET,
     STORAGE_MAX,
 } StorageEnum;
 

@@ -31,6 +31,7 @@
 #include "suricata-plugin.h"
 #include "threadvars.h"
 #include "util-debug.h"
+#include "util-storage.h"
 #include "decode-events.h"
 #include "util-exception-policy-types.h"
 #ifdef PROFILING
@@ -664,7 +665,6 @@ typedef struct Packet_
 /* storage: maximum ip packet size + link header */
 #define MAX_PAYLOAD_SIZE (IPV6_HEADER_LEN + 65536 + 28)
 extern uint32_t default_packet_size;
-#define SIZE_OF_PACKET (default_packet_size + sizeof(Packet))
 
 /** \brief Structure to hold thread specific data for all decode modules */
 typedef struct DecodeThreadVars_
