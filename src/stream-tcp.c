@@ -80,6 +80,8 @@
 #include "source-pcap-file.h"
 #include "action-globals.h"
 
+#include "ray-plugin.h"
+
 //#define DEBUG
 
 #define STREAMTCP_DEFAULT_PREALLOC              2048
@@ -1005,6 +1007,8 @@ static void StreamTcpPacketSetState(Packet *p, TcpSession *ssn,
     ssn->pstate = ssn->state;
     ssn->state = state;
     STREAM_PKT_FLAG_SET(p, STREAM_PKT_FLAG_STATE_UPDATE);
+
+    RayPluginCallPointStreamState(NULL, p);
 
     /* update the flow state */
     switch(ssn->state) {

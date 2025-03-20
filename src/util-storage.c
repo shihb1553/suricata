@@ -59,6 +59,8 @@ static const char *StoragePrintType(StorageEnum type)
             return "ippair";
         case STORAGE_DEVICE:
             return "livedevice";
+        case STORAGE_PACKET:
+            return "packet";
         case STORAGE_MAX:
             return "max";
     }
