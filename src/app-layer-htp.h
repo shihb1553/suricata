@@ -161,6 +161,9 @@ typedef struct HTPCfgRec_ {
     struct HTPCfgRec_   *next;
 
     int                 uri_include_all; /**< use all info in uri (bool) */
+    uint8_t             mms_enabled;    /* Parse MMS message or not (bool) */
+    uint8_t             wap_enabled;
+    uint8_t             reserved[2];
 
     /** max size of the client body we inspect */
     int                 randomize;
@@ -204,6 +207,16 @@ typedef struct HtpBody_ {
 #define HTP_DONTSTORE           BIT_U8(4)    /**< not storing this file */
 #define HTP_STREAM_DEPTH_SET    BIT_U8(5)    /**< stream-depth is set */
 
+#define TYPE_MMSE          1
+#define TYPE_WAP2          2
+#define TYPE_OTHERS        3
+
+typedef struct MMSEInfo_ {
+    char*    msg_from;
+    char**   msg_to;
+    uint64_t msg_to_cnt;
+} MMSEInfo;
+
 /** Now the Body Chunks will be stored per transaction, at
   * the tx user data */
 typedef struct HtpTxUserData_ {
@@ -238,16 +251,28 @@ typedef struct HtpTxUserData_ {
 
     HttpRangeContainerBlock *file_range; /**< used to assign track ids to range file */
 
+    MMSEInfo mmse_info;
+
     AppLayerTxData tx_data;
     FileContainer files_ts;
     FileContainer files_tc;
 } HtpTxUserData;
+
+/* MMS Message */
+struct mms_t {
+    uint64_t entry_num;  /* It is defined by standard, don't modify its type */
+    uint64_t data_left_len;
+};
 
 typedef struct HtpState_ {
     /* Connection parser structure for each connection */
     htp_connp_t *connp;
     /* Connection structure for each connection */
     htp_conn_t *conn;
+
+    /* MMS msg struct */
+    struct mms_t mms;
+
     Flow *f;                /**< Needed to retrieve the original flow when using HTPLib callbacks */
     uint64_t transaction_cnt;
     // tx_freed is the number of already freed transactions
@@ -258,6 +283,9 @@ typedef struct HtpState_ {
     // transaction id to libhtp offset in its list/array
     uint64_t tx_freed;
     const struct HTPCfgRec_ *cfg;
+
+    uint8_t c_type;
+
     uint16_t flags;
     uint16_t events;
     uint16_t htp_messages_offset; /**< offset into conn->messages list */
@@ -299,6 +327,22 @@ void HtpConfigCreateBackup(void);
 void HtpConfigRestoreBackup(void);
 
 void *HtpGetTxForH2(void *);
+uint64_t HTPStateGetTxCnt(void *alstate);
+int HTTPParseContentDispositionHeader(uint8_t *name, size_t name_len,
+        uint8_t *data, size_t len, uint8_t **retptr, size_t *retlen);
+void HtpFlagDetectStateNewFile(HtpTxUserData *tx, int dir);
+
+inline uint64_t HtpGetActiveRequestTxID(HtpState *s)
+{
+    uint64_t id = HTPStateGetTxCnt(s);
+    BUG_ON(id == 0);
+    return id - 1;
+}
+
+inline uint64_t HtpGetActiveResponseTxID(HtpState *s)
+{
+    return s->transaction_cnt;
+}
 
 #endif	/* __APP_LAYER_HTP_H__ */
 

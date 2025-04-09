@@ -65,6 +65,8 @@
 #include "app-layer-htp-range.h"
 #include "app-layer-htp-mem.h"
 
+#include "app-layer-htp-mmse.h"
+
 #include "util-spm.h"
 #include "util-debug.h"
 #include "util-time.h"
@@ -218,22 +220,9 @@ static const char *HTTPGetFrameNameById(const uint8_t frame_id)
 
 static void *HTPStateGetTx(void *alstate, uint64_t tx_id);
 static int HTPStateGetAlstateProgress(void *tx, uint8_t direction);
-static uint64_t HTPStateGetTxCnt(void *alstate);
 #ifdef UNITTESTS
 static void HTPParserRegisterTests(void);
 #endif
-
-static inline uint64_t HtpGetActiveRequestTxID(HtpState *s)
-{
-    uint64_t id = HTPStateGetTxCnt(s);
-    BUG_ON(id == 0);
-    return id - 1;
-}
-
-static inline uint64_t HtpGetActiveResponseTxID(HtpState *s)
-{
-    return s->transaction_cnt;
-}
 
 #ifdef DEBUG
 /**
@@ -358,6 +347,22 @@ static void *HTPStateAlloc(void *orig_state, AppProto proto_orig)
     SCReturnPtr((void *)s, "void");
 }
 
+static void HtpTxUserDataMMSEInfoFree(HtpTxUserData *htud)
+{
+    uint64_t i = 0;
+    if (likely(htud)) {
+        if (htud->mmse_info.msg_from) {
+            HTPFree(htud->mmse_info.msg_from, strlen(htud->mmse_info.msg_from)+1);
+        }
+        if (htud->mmse_info.msg_to) {
+            for (i = 0; i < htud->mmse_info.msg_to_cnt; i++) {
+                HTPFree(htud->mmse_info.msg_to[i], strlen(htud->mmse_info.msg_to[i]) + 1);
+            }
+            HTPFree(htud->mmse_info.msg_to, sizeof(char **));
+        }
+    }
+}
+
 static void HtpTxUserDataFree(HtpState *state, HtpTxUserData *htud)
 {
     if (likely(htud)) {
@@ -380,6 +385,7 @@ static void HtpTxUserDataFree(HtpState *state, HtpTxUserData *htud)
         }
         FileContainerRecycle(&htud->files_ts, &htp_sbcfg);
         FileContainerRecycle(&htud->files_tc, &htp_sbcfg);
+        HtpTxUserDataMMSEInfoFree(htud);
         HTPFree(htud, sizeof(HtpTxUserData));
     }
 }
@@ -465,6 +471,50 @@ static void HTPStateTransactionFree(void *state, uint64_t id)
         htp_tx_destroy(tx);
     }
     s->tx_freed += htp_connp_tx_freed(s->connp);
+}
+
+/**
+ *  If MMS protocol
+ */
+static void HtpStateSetTypeByHeader(htp_tx_data_t *d, HtpState *hstate, int direction)
+{
+    htp_header_t *h;
+
+    hstate->c_type = 0;
+
+    if (d->tx != NULL) {
+        if (direction == STREAM_TOCLIENT) {
+            if (d->tx->response_status_number != 200) {
+                return;
+            }
+            h = (htp_header_t *)htp_table_get_c(d->tx->response_headers, "Content-Type");
+        } else {
+            h = (htp_header_t *)htp_table_get_c(d->tx->request_headers, "Content-Type");
+        }
+        if (h != NULL) {
+            if (hstate->cfg->wap_enabled &&
+                bstr_index_of_c(h->value, "application/vnd.wap.") != -1) {
+                if (hstate->cfg->mms_enabled &&
+                    (!bstr_cmp_c(h->value, "application/vnd.wap.mms-message"))) {
+                    SCLogInfo("It is a MMS message");
+                    if (d->tx->request_uri) {
+                        char *uri = bstr_util_strdup_to_c(d->tx->request_uri);
+                        SCLogInfo("The request URI is %s", uri);
+                        free(uri);
+                    }
+
+                    hstate->c_type = TYPE_MMSE;
+                } else {
+                    SCLogInfo("It is a WAP message");
+                    hstate->c_type = TYPE_WAP2;
+                }
+            } else {
+                SCLogInfo("It isn't a WAP/MMS message");
+                hstate->c_type = TYPE_OTHERS;
+            }
+        }
+    }
+    return;
 }
 
 /**
@@ -1033,7 +1083,7 @@ static AppLayerResult HTPHandleResponseData(Flow *f, void *htp_state, AppLayerPa
 /**
  *  \param name /Lowercase/ version of the variable name
  */
-static int HTTPParseContentDispositionHeader(uint8_t *name, size_t name_len,
+int HTTPParseContentDispositionHeader(uint8_t *name, size_t name_len,
         uint8_t *data, size_t len, uint8_t **retptr, size_t *retlen)
 {
 #ifdef PRINT
@@ -1255,6 +1305,19 @@ static int HtpRequestBodySetupMultipart(htp_tx_t *tx, HtpTxUserData *htud)
 #define C_T_HDR "content-type:"
 #define C_T_HDR_LEN 13
 
+void HtpFlagDetectStateNewFile(HtpTxUserData *tx, int dir)
+{
+    SCEnter();
+    if (tx && tx->tx_data.de_state) {
+        if (dir == STREAM_TOSERVER) {
+            SCLogDebug("DETECT_ENGINE_STATE_FLAG_FILE_NEW set");
+            tx->tx_data.de_state->dir_state[0].flags |= DETECT_ENGINE_STATE_FLAG_FILE_NEW;
+        } else if (STREAM_TOCLIENT) {
+            SCLogDebug("DETECT_ENGINE_STATE_FLAG_FILE_NEW set");
+            tx->tx_data.de_state->dir_state[1].flags |= DETECT_ENGINE_STATE_FLAG_FILE_NEW;
+        }
+    }
+}
 static void HtpRequestBodyMultipartParseHeader(HtpState *hstate,
         HtpTxUserData *htud,
         uint8_t *header, uint32_t header_len,
@@ -1348,20 +1411,6 @@ static void HtpRequestBodyReassemble(HtpTxUserData *htud,
     StreamingBufferGetDataAtOffset(htud->request_body.sb,
             chunks_buffer, chunks_buffer_len,
             htud->request_body.body_parsed);
-}
-
-static void FlagDetectStateNewFile(HtpTxUserData *tx, int dir)
-{
-    SCEnter();
-    if (tx && tx->tx_data.de_state) {
-        if (dir == STREAM_TOSERVER) {
-            SCLogDebug("DETECT_ENGINE_STATE_FLAG_FILE_NEW set");
-            tx->tx_data.de_state->dir_state[0].flags |= DETECT_ENGINE_STATE_FLAG_FILE_NEW;
-        } else if (dir == STREAM_TOCLIENT) {
-            SCLogDebug("DETECT_ENGINE_STATE_FLAG_FILE_NEW set");
-            tx->tx_data.de_state->dir_state[1].flags |= DETECT_ENGINE_STATE_FLAG_FILE_NEW;
-        }
-    }
 }
 
 /**
@@ -1586,7 +1635,7 @@ static int HtpRequestBodyHandleMultipart(HtpState *hstate, HtpTxUserData *htud, 
                         goto end;
                     }
                 }
-                FlagDetectStateNewFile(htud, STREAM_TOSERVER);
+                HtpFlagDetectStateNewFile(htud, STREAM_TOSERVER);
 
                 htud->request_body.body_parsed += (header_end - chunks_buffer);
                 htud->tsflags &= ~HTP_FILENAME_SET;
@@ -1644,7 +1693,7 @@ static int HtpRequestBodyHandleMultipart(HtpState *hstate, HtpTxUserData *htud, 
                     } else if (result == -2) {
                         htud->tsflags |= HTP_DONTSTORE;
                     }
-                    FlagDetectStateNewFile(htud, STREAM_TOSERVER);
+                    HtpFlagDetectStateNewFile(htud, STREAM_TOSERVER);
                     htud->request_body.body_parsed += filedata_len;
                     SCLogDebug("htud->request_body.body_parsed %"PRIu64, htud->request_body.body_parsed);
 
@@ -1663,7 +1712,7 @@ static int HtpRequestBodyHandleMultipart(HtpState *hstate, HtpTxUserData *htud, 
                             goto end;
                         }
                     }
-                    FlagDetectStateNewFile(htud, STREAM_TOSERVER);
+                    HtpFlagDetectStateNewFile(htud, STREAM_TOSERVER);
 
                     htud->tsflags &= ~HTP_FILENAME_SET;
                     htud->request_body.body_parsed += (header_end - chunks_buffer);
@@ -1711,6 +1760,19 @@ static int HtpRequestBodyHandlePOSTorPUT(HtpState *hstate, HtpTxUserData *htud,
 {
     int result = 0;
 
+    if (hstate->cfg->mms_enabled && hstate->c_type == TYPE_MMSE) {
+        result = HTPHandleMMSData(hstate, htud, data, data_len, STREAM_TOSERVER);
+
+        if (result < 0) {
+            return -1;
+        }
+
+        htud->response_body.body_parsed += data_len;
+
+        /* Ignore all following HTTP parsing */
+        return 0;
+    }
+
     /* see if we need to open the file */
     if (!(htud->tsflags & HTP_FILENAME_SET))
     {
@@ -1736,7 +1798,7 @@ static int HtpRequestBodyHandlePOSTorPUT(HtpState *hstate, HtpTxUserData *htud,
             } else if (result == -2) {
                 htud->tsflags |= HTP_DONTSTORE;
             } else {
-                FlagDetectStateNewFile(htud, STREAM_TOSERVER);
+                HtpFlagDetectStateNewFile(htud, STREAM_TOSERVER);
                 htud->tsflags |= HTP_FILENAME_SET;
                 htud->tsflags &= ~HTP_DONTSTORE;
             }
@@ -1768,6 +1830,19 @@ static int HtpResponseBodyHandle(HtpState *hstate, HtpTxUserData *htud,
     SCEnter();
 
     int result = 0;
+
+    if (hstate->cfg->mms_enabled && hstate->c_type == TYPE_MMSE) {
+        result = HTPHandleMMSData(hstate, htud, data, data_len, STREAM_TOCLIENT);
+
+        if (result < 0) {
+            return -1;
+        }
+
+        htud->request_body.body_parsed += data_len;
+
+        /* Ignore all following HTTP parsing */
+        return 0;
+    }
 
     /* see if we need to open the file
      * we check for tx->response_line in case of junk
@@ -1818,7 +1893,7 @@ static int HtpResponseBodyHandle(HtpState *hstate, HtpTxUserData *htud,
             } else if (result == -2) {
                 htud->tcflags |= HTP_DONTSTORE;
             } else {
-                FlagDetectStateNewFile(htud, STREAM_TOCLIENT);
+                HtpFlagDetectStateNewFile(htud, STREAM_TOCLIENT);
                 htud->tcflags |= HTP_FILENAME_SET;
                 htud->tcflags &= ~HTP_DONTSTORE;
             }
@@ -1897,6 +1972,8 @@ static int HTPCallbackRequestBodyData(htp_tx_data_t *d)
         }
     }
 
+    HtpStateSetTypeByHeader(d, hstate, STREAM_TOSERVER);
+
     /* see if we can get rid of htp body chunks */
     HtpBodyPrune(hstate, &tx_ud->request_body, STREAM_TOSERVER);
 
@@ -1915,6 +1992,7 @@ static int HTPCallbackRequestBodyData(htp_tx_data_t *d)
 
         HtpBodyAppendChunk(&hstate->cfg->request, &tx_ud->request_body, d->data, len);
 
+        int ret = 0;
         const uint8_t *chunks_buffer = NULL;
         uint32_t chunks_buffer_len = 0;
 
@@ -1938,7 +2016,10 @@ static int HTPCallbackRequestBodyData(htp_tx_data_t *d)
 
         } else if (tx_ud->request_body_type == HTP_BODY_REQUEST_POST ||
                    tx_ud->request_body_type == HTP_BODY_REQUEST_PUT) {
-            HtpRequestBodyHandlePOSTorPUT(hstate, tx_ud, d->tx, (uint8_t *)d->data, len);
+            ret = HtpRequestBodyHandlePOSTorPUT(hstate, tx_ud, d->tx, (uint8_t *)d->data, len);
+            if (ret < 0) {
+                SCReturnInt(HTP_ERROR);
+            }
         }
 
     } else {
@@ -2014,6 +2095,8 @@ static int HTPCallbackResponseBodyData(htp_tx_data_t *d)
         tx_ud->request_body_init = 1;
     }
 
+    HtpStateSetTypeByHeader(d, hstate, STREAM_TOCLIENT);
+
     /* see if we can get rid of htp body chunks */
     HtpBodyPrune(hstate, &tx_ud->response_body, STREAM_TOCLIENT);
 
@@ -2022,6 +2105,7 @@ static int HTPCallbackResponseBodyData(htp_tx_data_t *d)
 
     /* within limits, add the body chunk to the state. */
     if (AppLayerHtpCheckDepth(&hstate->cfg->response, &tx_ud->response_body, tx_ud->tcflags)) {
+        int ret = 0;
         uint32_t stream_depth = FileReassemblyDepth();
         uint32_t len = AppLayerHtpComputeChunkLength(tx_ud->response_body.content_len_so_far,
                                                      hstate->cfg->response.body_limit,
@@ -2032,7 +2116,10 @@ static int HTPCallbackResponseBodyData(htp_tx_data_t *d)
 
         HtpBodyAppendChunk(&hstate->cfg->response, &tx_ud->response_body, d->data, len);
 
-        HtpResponseBodyHandle(hstate, tx_ud, d->tx, (uint8_t *)d->data, len);
+        ret = HtpResponseBodyHandle(hstate, tx_ud, d->tx, (uint8_t *)d->data, len);
+        if (ret < 0) {
+            SCReturnInt(HTP_ERROR);
+        }
     } else {
         if (tx_ud->tcflags & HTP_FILENAME_SET) {
             SCLogDebug("closing file that was being stored");
@@ -2994,6 +3081,18 @@ static void HTPConfigParseParameters(HTPCfgRec *cfg_prec, ConfNode *s,
                     SCLogWarning("Ignoring unknown param %s", pval->name);
                 }
             }
+        } else if (strcasecmp("mmse", p->name) == 0) {
+            if (ConfValIsTrue(p->val)) {
+                cfg_prec->mms_enabled = 1;
+            } else if (ConfValIsFalse(p->val)) {
+                cfg_prec->mms_enabled = 0;
+            }
+        } else if (strcasecmp("wap", p->name) == 0) {
+            if (ConfValIsTrue(p->val)) {
+                cfg_prec->wap_enabled = 1;
+            } else if (ConfValIsFalse(p->val)) {
+                cfg_prec->wap_enabled = 0;
+            }
         } else {
             SCLogWarning("LIBHTP Ignoring unknown "
                          "default config: %s",
@@ -3118,7 +3217,7 @@ static int HTPStateGetAlstateProgress(void *tx, uint8_t direction)
         return ((htp_tx_t *)tx)->response_progress;
 }
 
-static uint64_t HTPStateGetTxCnt(void *alstate)
+uint64_t HTPStateGetTxCnt(void *alstate)
 {
     HtpState *http_state = (HtpState *)alstate;
 
@@ -3255,6 +3354,60 @@ static int HTPRegisterPatternsForProtocolDetection(void)
 }
 
 /**
+ *  \brief  Register the wap protocol and state handling functions to APP layer
+ *          of the engine.
+ */
+static void RegisterWAP2Parsers(void)
+{
+    SCEnter();
+    const char *proto_name = "wap2";
+
+    if (AppLayerProtoDetectConfProtoDetectionEnabled("tcp", proto_name)) {
+        AppLayerProtoDetectRegisterProtocol(ALPROTO_WAP2, proto_name);
+    } else {
+        SCLogInfo("Protocol detection and parser disabled for %s protocol",
+                  proto_name);
+        return;
+    }
+
+    if (AppLayerParserConfParserEnabled("tcp", proto_name)) {
+        AppLayerParserRegisterGetTxFilesFunc(IPPROTO_TCP, ALPROTO_WAP2, HTPGetTxFiles);
+    } else {
+        SCLogInfo("Parsed disabled for %s protocol. Protocol detection"
+                  "still on.", proto_name);
+    }
+
+    SCReturn;
+}
+
+/**
+ *  \brief  Register the MMSE protocol and state handling functions to APP layer
+ *          of the engine.
+ */
+static void RegisterMMSEParsers(void)
+{
+    SCEnter();
+    const char *proto_name = "mmse";
+
+    /** MMS */
+    if (AppLayerProtoDetectConfProtoDetectionEnabled("tcp", proto_name)) {
+        AppLayerProtoDetectRegisterProtocol(ALPROTO_MMSE, proto_name);
+    } else {
+        SCLogInfo("Protocol detection and parser disabled for %s protocol",
+                  proto_name);
+        return;
+    }
+
+   if (AppLayerParserConfParserEnabled("tcp", proto_name)) {
+        AppLayerParserRegisterGetTxFilesFunc(IPPROTO_TCP, ALPROTO_MMSE, HTPGetTxFiles);
+    } else {
+        SCLogInfo("Parsed disabled for %s protocol. Protocol detection"
+                  "still on.", proto_name);
+    }
+
+    SCReturn;
+}
+/**
  *  \brief  Register the HTTP protocol and state handling functions to APP layer
  *          of the engine.
  */
@@ -3310,6 +3463,10 @@ void RegisterHTPParsers(void)
         AppLayerParserRegisterGetFrameFuncs(
                 IPPROTO_TCP, ALPROTO_HTTP1, HTTPGetFrameIdByName, HTTPGetFrameNameById);
         /* app-layer-frame-documentation tag end: registering relevant callbacks */
+
+        RegisterWAP2Parsers();
+        RegisterMMSEParsers();
+
         HTPConfigure();
     } else {
         SCLogInfo("Parsed disabled for %s protocol. Protocol detection"

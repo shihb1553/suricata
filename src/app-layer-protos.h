@@ -65,6 +65,9 @@ enum AppProtoEnum {
     // HTTP for any version (ALPROTO_HTTP1 (version 1) or ALPROTO_HTTP2)
     ALPROTO_HTTP,
 
+    ALPROTO_WAP2,
+    ALPROTO_MMSE,
+
     /* used by the probing parser when alproto detection fails
      * permanently for that particular stream */
     ALPROTO_FAILED,
