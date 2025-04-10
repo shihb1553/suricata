@@ -31,6 +31,7 @@ noinst_HEADERS = \
 	app-layer-htp-mem.h \
 	app-layer-htp-range.h \
 	app-layer-htp-xff.h \
+	app-layer-htp-mmse.h \
 	app-layer-http2.h \
 	app-layer-ike.h \
 	app-layer-krb5.h \
@@ -652,6 +653,7 @@ libsuricata_c_a_SOURCES = \
 	app-layer-htp-mem.c \
 	app-layer-htp-range.c \
 	app-layer-htp-xff.c \
+	app-layer-htp-mmse.c \
 	app-layer-http2.c \
 	app-layer-ike.c \
 	app-layer-krb5.c \

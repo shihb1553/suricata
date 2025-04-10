@@ -161,6 +161,9 @@ typedef struct HTPCfgRec_ {
     struct HTPCfgRec_   *next;
 
     int                 uri_include_all; /**< use all info in uri (bool) */
+    uint8_t             mms_enabled;    /* Parse MMS message or not (bool) */
+    uint8_t             wap_enabled;
+    uint8_t             reserved[2];
 
     /** max size of the client body we inspect */
     int                 randomize;
@@ -203,6 +206,18 @@ typedef struct HtpBody_ {
 #define HTP_FILENAME_SET        BIT_U8(3)    /**< filename is registered in the flow */
 #define HTP_DONTSTORE           BIT_U8(4)    /**< not storing this file */
 #define HTP_STREAM_DEPTH_SET    BIT_U8(5)    /**< stream-depth is set */
+#define HTP_MMS_FILENAME_SET    BIT_U8(6)    /**< MMS filename is registered in the flow */
+#define HTP_MMS_DONTSTORE       BIT_U8(7)    /**< MMS not storing this file */
+
+#define TYPE_MMSE          1
+#define TYPE_WAP2          2
+#define TYPE_OTHERS        3
+
+typedef struct MMSEInfo_ {
+    char*    msg_from;
+    char**   msg_to;
+    uint64_t msg_to_cnt;
+} MMSEInfo;
 
 /** Now the Body Chunks will be stored per transaction, at
   * the tx user data */
@@ -299,6 +314,22 @@ void HtpConfigCreateBackup(void);
 void HtpConfigRestoreBackup(void);
 
 void *HtpGetTxForH2(void *);
+uint64_t HTPStateGetTxCnt(void *alstate);
+int HTTPParseContentDispositionHeader(uint8_t *name, size_t name_len,
+        uint8_t *data, size_t len, uint8_t **retptr, size_t *retlen);
+void HtpFlagDetectStateNewFile(HtpTxUserData *tx, int dir);
+
+inline uint64_t HtpGetActiveRequestTxID(HtpState *s)
+{
+    uint64_t id = HTPStateGetTxCnt(s);
+    BUG_ON(id == 0);
+    return id - 1;
+}
+
+inline uint64_t HtpGetActiveResponseTxID(HtpState *s)
+{
+    return s->transaction_cnt;
+}
 
 #endif	/* __APP_LAYER_HTP_H__ */
 
