@@ -274,6 +274,9 @@ static inline PacketAlert PacketAlertSet(
     /* Set tx_id if the frame has it */
     pa.tx_id = tx_id;
     pa.frame_id = (alert_flags & PACKET_ALERT_FLAG_FRAME) ? det_ctx->frame_id : 0;
+
+    pa.customdatalist = det_ctx->customdatalist;
+    det_ctx->customdatalist = NULL;
     return pa;
 }
 

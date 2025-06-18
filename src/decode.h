@@ -267,6 +267,7 @@ typedef struct PacketAlert_ {
     const struct Signature_ *s;
     uint64_t tx_id; /* Used for sorting */
     int64_t frame_id;
+    struct DetectCustomdataList_ *customdatalist;
 } PacketAlert;
 
 /* flag to indicate the rule action (drop/pass) needs to be applied to the flow */

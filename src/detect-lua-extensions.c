@@ -36,6 +36,7 @@
 #include "detect-engine.h"
 #include "detect-engine-mpm.h"
 #include "detect-engine-state.h"
+#include "detect-engine-customdata.h"
 
 #include "flow.h"
 #include "flow-var.h"
@@ -506,6 +507,38 @@ static int LuaGetByteVar(lua_State *luastate)
     return 1;
 }
 
+static int LuaSetDetectCustomData(lua_State *luastate)
+{
+    DetectLuaData *ld;
+    DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
+
+    if (det_ctx == NULL)
+        return LuaCallbackError(luastate, "internal error: no ldet_ctx");
+
+    /* need lua data for id -> idx conversion */
+    int ret = GetLuaData(luastate, &ld);
+    if (ret != 0)
+        return ret;
+
+    if (!lua_isstring(luastate, 1)) {
+        LUA_ERROR("1st arg not a string");
+    }
+    const char *key = lua_tostring(luastate, 1);
+    if (key == NULL) {
+        LUA_ERROR("key is NULL");
+    }
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *value = lua_tostring(luastate, 2);
+    if (value == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    return CustomdataAdd(det_ctx, key, value, strlen(key), strlen(value));
+}
+
 void LuaExtensionsMatchSetup(lua_State *lua_state, DetectLuaData *ld,
         DetectEngineThreadCtx *det_ctx, Flow *f, Packet *p, const Signature *s, uint8_t flags)
 {
@@ -579,6 +612,9 @@ int LuaRegisterExtensions(lua_State *lua_state)
 
     lua_pushcfunction(lua_state, LuaGetByteVar);
     lua_setglobal(lua_state, "SCByteVarGet");
+
+    lua_pushcfunction(lua_state, LuaSetDetectCustomData);
+    lua_setglobal(lua_state, "SCDetectCustomDataSet");
 
     LuaRegisterFunctions(lua_state);
     LuaRegisterHttpFunctions(lua_state);
