@@ -37,6 +37,8 @@
 #include "detect-engine-mpm.h"
 #include "detect-engine-state.h"
 #include "detect-engine-customdata.h"
+#include "detect-engine-record.h"
+#include "detect-record.h"
 
 #include "flow.h"
 #include "flow-var.h"
@@ -539,6 +541,74 @@ static int LuaSetDetectCustomData(lua_State *luastate)
     return CustomdataAdd(det_ctx, key, value, strlen(key), strlen(value));
 }
 
+static int LuaSetRecord(lua_State *luastate)
+{
+    DetectLuaData *ld;
+    DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
+
+    if (det_ctx == NULL)
+        return LuaCallbackError(luastate, "internal error: no ldet_ctx");
+
+    /* need lua data for id -> idx conversion */
+    int ret = GetLuaData(luastate, &ld);
+    if (ret != 0)
+        return ret;
+
+    /* type, fmt, packets, bytes, seconds */
+    if (!lua_isstring(luastate, 1)) {
+        LUA_ERROR("1st arg not a string");
+    }
+    const char *type = lua_tostring(luastate, 1);
+    if (type == NULL) {
+        LUA_ERROR("type is NULL");
+    }
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *fmt = lua_tostring(luastate, 2);
+    if (fmt == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    if (!lua_isnumber(luastate, 3)) {
+        LUA_ERROR("3rd arg not a number");
+    }
+    int packets = lua_tonumber(luastate, 3);
+
+    if (!lua_isnumber(luastate, 4)) {
+        LUA_ERROR("4th arg not a number");
+    }
+    int bytes = lua_tonumber(luastate, 4);
+
+    if (!lua_isnumber(luastate, 5)) {
+        LUA_ERROR("5th arg not a number");
+    }
+    int seconds = lua_tonumber(luastate, 5);
+
+    Packet *p = det_ctx->p;
+    DetectRecordDataEntry rde;
+    memset(&rde, 0, sizeof(DetectRecordDataEntry));
+
+    rde.last_ts = rde.first_ts = SCTIME_SECS(p->ts);
+    rde.packet_limit = packets;
+    rde.byte_limit = bytes;
+    rde.time_limit = seconds;
+    rde.file = strdup(fmt);
+
+    if (strcmp(type, "one-packet") == 0) {
+        p->flags |= PKT_HAS_RECORD;
+    } else if (strcmp(type, "ippairs") == 0) {
+        RecordIPPairAdd(&rde, p);
+    } else if (strcmp(type, "session") == 0) {
+        RecordFlowAdd(&rde, p);
+    } else {
+        LUA_ERROR("invalid type");
+    }
+
+    return 0;
+}
+
 void LuaExtensionsMatchSetup(lua_State *lua_state, DetectLuaData *ld,
         DetectEngineThreadCtx *det_ctx, Flow *f, Packet *p, const Signature *s, uint8_t flags)
 {
@@ -615,6 +685,9 @@ int LuaRegisterExtensions(lua_State *lua_state)
 
     lua_pushcfunction(lua_state, LuaSetDetectCustomData);
     lua_setglobal(lua_state, "SCDetectCustomDataSet");
+
+    lua_pushcfunction(lua_state, LuaSetRecord);
+    lua_setglobal(lua_state, "SCRecordSet");
 
     LuaRegisterFunctions(lua_state);
     LuaRegisterHttpFunctions(lua_state);

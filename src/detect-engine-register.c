@@ -108,6 +108,7 @@
 #include "detect-classtype.h"
 #include "detect-reference.h"
 #include "detect-tag.h"
+#include "detect-record.h"
 #include "detect-threshold.h"
 #include "detect-metadata.h"
 #include "detect-msg.h"
@@ -471,6 +472,7 @@ void SigTableSetup(void)
     DetectClasstypeRegister();
     DetectReferenceRegister();
     DetectTagRegister();
+    DetectRecordRegister();
     DetectThresholdRegister();
     DetectMetadataRegister();
     DetectMsgRegister();

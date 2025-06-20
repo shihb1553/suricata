@@ -38,6 +38,7 @@
 #include "detect-engine-dcepayload.h"
 #include "detect-engine-state.h"
 #include "detect-engine-tag.h"
+#include "detect-engine-record.h"
 #include "detect-engine-enip.h"
 #include "detect-fast-pattern.h"
 #include "flow.h"
@@ -256,6 +257,8 @@ void RunUnittests(int list_unittests, const char *regex_arg)
     TmqhSetup();
 
     TagInitCtx();
+
+    RecordInitCtx();
 
     UtInitialize();
 
