@@ -62,6 +62,8 @@
 
 #include "app-layer-parser.h"
 
+#include "usocket.h"
+
 #ifdef HAVE_LUA
 
 #include "util-lua.h"
@@ -609,6 +611,63 @@ static int LuaSetRecord(lua_State *luastate)
     return 0;
 }
 
+static int LuaSetUSocket(lua_State *luastate)
+{
+    DetectLuaData *ld;
+    DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
+
+    if (det_ctx == NULL)
+        return LuaCallbackError(luastate, "internal error: no ldet_ctx");
+
+    /* need lua data for id -> idx conversion */
+    int ret = GetLuaData(luastate, &ld);
+    if (ret != 0)
+        return ret;
+
+    /* id, ip, port */
+    if (!lua_isnumber(luastate, 1)) {
+        LUA_ERROR("1rd arg not a number");
+    }
+    int id = lua_tonumber(luastate, 1);
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *ip = lua_tostring(luastate, 2);
+    if (ip == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    if (!lua_isnumber(luastate, 3)) {
+        LUA_ERROR("3th arg not a number");
+    }
+    int port = lua_tonumber(luastate, 3);
+
+    USocketData data;
+    if (inet_pton(AF_INET, ip, &data.addr) <= 0) {
+        LUA_ERROR("invalid ip address");
+    }
+    data.port = (uint16_t)port;
+    data.len = GET_PKT_LEN(det_ctx->p) + 24;
+
+    struct USocketDataM {
+        char header[8];
+        uint64_t len;
+        int64_t id;
+        char data[];
+    } *mdata = malloc(sizeof(struct USocketDataM) + GET_PKT_LEN(det_ctx->p));
+    if (mdata == NULL) {
+        LUA_ERROR("failed to allocate memory");
+    }
+    memcpy(mdata->header, "usocket0", 8);
+    mdata->len = GET_PKT_LEN(det_ctx->p) + 16;
+    mdata->id = id;
+    memcpy(mdata->data, GET_PKT_DATA(det_ctx->p), GET_PKT_LEN(det_ctx->p));
+    data.data = (char *)mdata;
+
+    return USocketEnqueue(det_ctx->tv->id, &data);
+}
+
 void LuaExtensionsMatchSetup(lua_State *lua_state, DetectLuaData *ld,
         DetectEngineThreadCtx *det_ctx, Flow *f, Packet *p, const Signature *s, uint8_t flags)
 {
@@ -688,6 +747,9 @@ int LuaRegisterExtensions(lua_State *lua_state)
 
     lua_pushcfunction(lua_state, LuaSetRecord);
     lua_setglobal(lua_state, "SCRecordSet");
+
+    lua_pushcfunction(lua_state, LuaSetUSocket);
+    lua_setglobal(lua_state, "SCUSocketSet");
 
     LuaRegisterFunctions(lua_state);
     LuaRegisterHttpFunctions(lua_state);

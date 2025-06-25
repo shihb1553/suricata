@@ -32,8 +32,8 @@ function util_action.nothing()
     return nil
 end
 
-function util_action.usocket(ip, port)
-    return nil
+function util_action.usocket(id, ip, port)
+    return SCUSocketSet(id, ip, port)
 end
 
 local function record(type, fmt, packets, bytes, seconds)

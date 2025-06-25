@@ -118,6 +118,8 @@
 #include "tmqh-packetpool.h"
 #include "tm-queuehandlers.h"
 
+#include "usocket.h"
+
 #include "util-byte.h"
 #include "util-conf.h"
 #include "util-coredump-config.h"
@@ -902,6 +904,7 @@ void RegisterAllModules(void)
     TmModuleFlowManagerRegister();
     TmModuleFlowRecyclerRegister();
     TmModuleBypassedFlowManagerRegister();
+    TmModuleUSocketRegister();
     /* nfq */
     TmModuleReceiveNFQRegister();
     TmModuleVerdictNFQRegister();

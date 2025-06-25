@@ -362,6 +362,7 @@ noinst_HEADERS = \
 	detect-xbits.h \
 	device-storage.h \
 	feature.h \
+	fifo.h \
 	flow-bit.h \
 	flow-bypass.h \
 	flow.h \
@@ -467,6 +468,7 @@ noinst_HEADERS = \
 	runmode-windivert.h \
 	rust-context.h \
 	rust.h \
+	usocket.h \
 	source-af-packet.h \
 	source-af-xdp.h \
 	source-dpdk.h \
@@ -983,6 +985,7 @@ libsuricata_c_a_SOURCES = \
 	detect-xbits.c \
 	device-storage.c \
 	feature.c \
+	fifo.c \
 	flow-bit.c \
 	flow-bypass.c \
 	flow.c \
@@ -1086,6 +1089,7 @@ libsuricata_c_a_SOURCES = \
 	runmode-unix-socket.c \
 	runmode-windivert.c \
 	rust-context.c \
+	usocket.c \
 	source-af-packet.c \
 	source-af-xdp.c \
 	source-dpdk.c \
