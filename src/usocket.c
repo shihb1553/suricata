@@ -9,16 +9,6 @@
 
 #include "usocket.h"
 
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <unistd.h>
-// #include <sys/socket.h>
-// #include <netinet/in.h>
-// #include <arpa/inet.h>
-// #include <fcntl.h>
-// #include <errno.h>
-
 #define USOCKET_MAX_QUEUE_SIZE      8192    // 队列最大长度
 
 

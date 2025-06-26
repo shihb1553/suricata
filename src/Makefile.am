@@ -524,6 +524,7 @@ noinst_HEADERS = \
 	util-buffer.h \
 	util-byte.h \
 	util-checksum.h \
+	util-charset.h \
 	util-cidr.h \
 	util-classification-config.h \
 	util-clock.h \
@@ -584,6 +585,7 @@ noinst_HEADERS = \
 	util-memcmp.h \
 	util-memcpy.h \
 	util-mem.h \
+	util-memory-decompression.h \
 	util-memrchr.h \
 	util-misc.h \
 	util-mpm-ac-bs.h \
@@ -1134,6 +1136,7 @@ libsuricata_c_a_SOURCES = \
 	util-buffer.c \
 	util-byte.c \
 	util-checksum.c \
+	util-charset.c \
 	util-cidr.c \
 	util-classification-config.c \
 	util-conf.c \
@@ -1190,6 +1193,7 @@ libsuricata_c_a_SOURCES = \
 	util-magic.c \
 	util-mem.c \
 	util-memcmp.c \
+	util-memory-decompression.c \
 	util-memrchr.c \
 	util-misc.c \
 	util-mpm-ac-bs.c \

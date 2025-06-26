@@ -56,3 +56,44 @@ function util_data.get(key)
     end
     return nil
 end
+
+function util_data.hex(data)
+    local result = {}
+    for i = 1, #data do
+        table.insert(result, string.format("\\x%02X", string.byte(data, i)))
+    end
+    return table.concat(result)
+end
+
+local base64 = require('base64')
+function util_data.base64d(str)
+    return base64.decode(str)
+end
+
+function util_data.base64e(str)
+    return base64.encode(str)
+end
+
+function util_data.zip(str)
+    return SCStrZip(str)
+end
+
+function util_data.unzip(data)
+    return SCUnzip(data)
+end
+
+function util_data.ungzip(data)
+    return SCUngzip(data)
+end
+
+function util_data.undeflate(data)
+    local a, msg = SCUndeflate(data)
+    if a == nil then
+        print(msg)
+    end
+    return a
+end
+
+function util_data.charset(data, src, dst)
+    return SCCharset(data, src, dst)
+end
