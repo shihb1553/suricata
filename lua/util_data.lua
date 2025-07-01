@@ -97,3 +97,146 @@ end
 function util_data.charset(data, src, dst)
     return SCCharset(data, src, dst)
 end
+
+function util_data.sequence(str, op, ...)
+    local args = {...}
+    if op == '==' then
+        local start_index, _ = string.find(str, table.concat(args, ''), 1, true)
+        if start_index == 1 then
+            return true
+        end
+    elseif op == '*=' then
+        local start_index, _ = string.find(string.lower(str), string.lower(table.concat(args, '')), 1, true)
+        if start_index == 1 then
+            return true
+        end
+    elseif op == '^' then
+        local init = 1
+        for _, value in ipairs(args) do
+            local start_index, stop_index = string.find(str, value, init, true)
+            if start_index == nil then
+                return false
+            end
+            init = stop_index + 1
+        end
+        return true
+    elseif op == '*^' then
+        local init = 1
+        for _, value in ipairs(args) do
+            local start_index, stop_index = string.find(string.lower(str), string.lower(value), init, true)
+            if start_index == nil then
+                return false
+            end
+            init = stop_index + 1
+        end
+        return true
+    end
+    return false
+end
+
+util_data.ST_CMD = 1
+util_data.ST_ALL = 2
+util_data.ST_NONE = 4
+util_data.ST_SHUF = 8
+function util_data.stoken(str, mask, ...)
+    local args = {...}
+    local result = {}
+    -- local str = HttpGetRequestLine()
+    if str == nil then
+        return false
+    end
+    if mask[util_data.ST_CMD] == true then
+        local start_index, end_index = string.find(str, args[1] .. '?', 1, true)
+        if start_index == nil then
+            return false
+        end
+        table.remove(args, 1)
+        str = string.sub(str, end_index + 1)
+    else
+        local start_index, end_index = string.find(str, '?', 1, true)
+        if start_index == nil then
+            return false
+        end
+        str = string.sub(str, end_index + 1)
+    end
+    if str == nil then
+        return false
+    end
+
+    local init = 1
+    while true do
+        local start_index, end_index = string.find(str, '=', init, true)
+        if start_index == nil then
+            break
+        end
+        local part = string.sub(str, init, start_index - 1)
+        table.insert(result, part)
+        local delime_index, _ = string.find(str, '&', end_index, true)
+        if delime_index == nil then
+            break
+        end
+        init = delime_index + 1
+    end
+
+    print('result: ', #result)
+    print('args: ', #args)
+
+    if mask[util_data.ST_ALL] == true and #result ~= #args then
+        return false
+    end
+
+    if mask[util_data.ST_SHUF] == true then
+        table.sort(result)
+        table.sort(args)
+    end
+
+    for i = 1, #args do
+        if result[i] ~= args[i] then
+            return false
+        end
+    end
+    return true
+end
+
+function util_data.sarray(str, op, ...)
+    local args = {...}
+    for _, value in ipairs(args) do
+        if op == '==' and string.find(str, value, 1, true) == 1 then
+            return true
+        elseif op == '*=' and string.find(string.lower(str), string.lower(value), 1, true) == 1 then
+            return true
+        elseif op == '^' and string.find(str, value, 1, true) ~= nil then
+            return true
+        elseif op == '*^' and string.find(string.lower(str), string.lower(value), 1, true) ~= nil then
+            return true
+        elseif op == '^^' then
+            local _, end_index = string.find(str, value, 1, true)
+            if end_index == #str then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function util_data.iparray(ip, op, ...)
+    local args = {...}
+    for _, value in ipairs(args) do
+        if op == '==' and ip == value then
+            return true
+        end
+    end
+    return false
+end
+
+function util_data.narray(num, op, ...)
+    local args = {...}
+    for _, value in ipairs(args) do
+        if op == '==' and num == value then
+            return true
+        end
+    end
+    return false
+end
+
+return util_data

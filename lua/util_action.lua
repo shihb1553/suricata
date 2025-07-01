@@ -57,3 +57,5 @@ end
 function util_action.record5k(fmt, packets, bytes, seconds)
     return record("session", fmt, packets, bytes, seconds)
 end
+
+return util_action
