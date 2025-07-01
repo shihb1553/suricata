@@ -178,9 +178,6 @@ function util_data.stoken(str, mask, ...)
         init = delime_index + 1
     end
 
-    print('result: ', #result)
-    print('args: ', #args)
-
     if mask[util_data.ST_ALL] == true and #result ~= #args then
         return false
     end
