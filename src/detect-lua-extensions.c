@@ -515,16 +515,10 @@ static int LuaGetByteVar(lua_State *luastate)
 
 static int LuaSetDetectCustomData(lua_State *luastate)
 {
-    DetectLuaData *ld;
     DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
 
     if (det_ctx == NULL)
         return LuaCallbackError(luastate, "internal error: no ldet_ctx");
-
-    /* need lua data for id -> idx conversion */
-    int ret = GetLuaData(luastate, &ld);
-    if (ret != 0)
-        return ret;
 
     if (!lua_isstring(luastate, 1)) {
         LUA_ERROR("1st arg not a string");
@@ -547,16 +541,10 @@ static int LuaSetDetectCustomData(lua_State *luastate)
 
 static int LuaSetRecord(lua_State *luastate)
 {
-    DetectLuaData *ld;
     DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
 
     if (det_ctx == NULL)
         return LuaCallbackError(luastate, "internal error: no ldet_ctx");
-
-    /* need lua data for id -> idx conversion */
-    int ret = GetLuaData(luastate, &ld);
-    if (ret != 0)
-        return ret;
 
     /* type, fmt, packets, bytes, seconds */
     if (!lua_isstring(luastate, 1)) {
@@ -615,16 +603,10 @@ static int LuaSetRecord(lua_State *luastate)
 
 static int LuaSetUSocket(lua_State *luastate)
 {
-    DetectLuaData *ld;
     DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
 
     if (det_ctx == NULL)
         return LuaCallbackError(luastate, "internal error: no ldet_ctx");
-
-    /* need lua data for id -> idx conversion */
-    int ret = GetLuaData(luastate, &ld);
-    if (ret != 0)
-        return ret;
 
     /* id, ip, port */
     if (!lua_isnumber(luastate, 1)) {

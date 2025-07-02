@@ -523,6 +523,21 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
             }
             break;
         }
+        case TYPE_FREQ:
+        {
+            if (lookup_tsh != NULL) {
+                if (lookup_tsh->current_count * 100 / (lookup_tsh->current_count+lookup_tsh->tv_timeout) <= td->count) {
+                    lookup_tsh->current_count++;
+                    ret = 1;
+                } else {
+                    lookup_tsh->tv_timeout++;
+                }
+            } else {
+                *new_tsh = DetectThresholdEntryAlloc(td, p, sid, gid);
+                ret = 1;
+            }
+            break;
+        }
         /* case TYPE_SUPPRESS: is not handled here */
         default:
             SCLogError("type %d is not supported", td->type);

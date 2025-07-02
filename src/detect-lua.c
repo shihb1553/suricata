@@ -35,7 +35,7 @@
 #include "detect-engine-mpm.h"
 #include "detect-engine-state.h"
 #include "detect-engine-build.h"
-
+#include "detect-threshold.h"
 #include "detect-byte.h"
 
 #include "flow.h"
@@ -773,6 +773,8 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
 
     lua_pushnil(luastate);
     const char *k, *v;
+    DetectThresholdData *de;
+    SigMatch *sm;
     while (lua_next(luastate, -2)) {
         k = lua_tostring(luastate, -2);
         if (k == NULL)
@@ -847,6 +849,176 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                     }
                     ld->bytevar[ld->bytevars++] = idx;
                     SCLogDebug("script uses bytevar %u with script id %u", idx, ld->bytevars - 1);
+                }
+            }
+            lua_pop(luastate, 1);
+            continue;
+        } else if (strcmp(k, "elimit") == 0) {
+            if (lua_istable(luastate, -1)) {
+                lua_pushnil(luastate);
+                int ret = -1;
+
+                de = NULL;
+                sm = NULL;
+                do {
+                    if (lua_next(luastate, -2) == 0) {
+                        break;
+                    }
+                    int limit = lua_tonumber(luastate, -1);
+                    lua_pop(luastate, 1);
+
+                    if (lua_next(luastate, -2) == 0) {
+                        break;
+                    }
+                    int delay = lua_tonumber(luastate, -1);
+
+                    /* checks if there is a previous instance of detection_filter */
+                    SigMatch *tmpm = DetectGetLastSMFromLists(s, DETECT_THRESHOLD, DETECT_DETECTION_FILTER, -1);
+                    if (tmpm != NULL) {
+                        if (tmpm->type == DETECT_DETECTION_FILTER) {
+                            SCLogError("\"detection_filter\" and "
+                                    "\"threshold\" are not allowed in the same rule");
+                        } else {
+                            SCLogError("multiple \"threshold\" "
+                                    "options are not allowed in the same rule");
+                        }
+                        break;
+                    }
+
+                    de = SCCalloc(1, sizeof(DetectThresholdData));
+                    if (unlikely(de == NULL))
+                        break;
+                    de->seconds = delay;
+                    de->count = limit;
+                    de->type = TYPE_LIMIT;
+                    de->track = TRACK_RULE;
+                    SCLogNotice("Detection filter: %d/%d", de->count, de->seconds);
+
+                    sm = SigMatchAlloc();
+                    if (sm == NULL)
+                        break;
+
+                    sm->type = DETECT_THRESHOLD;
+                    sm->ctx = (SigMatchCtx *)de;
+
+                    SigMatchAppendSMToList((Signature *)s, sm, DETECT_SM_LIST_THRESHOLD);
+                    ret = 0;
+                } while (0);
+
+                if (unlikely(ret != 0)) {
+                    if (de) SCFree(de);
+                    if (sm) SCFree(sm);
+                }
+            }
+            lua_pop(luastate, 1);
+            continue;
+        } else if (strcmp(k, "emax") == 0) {
+            if (lua_istable(luastate, -1)) {
+                lua_pushnil(luastate);
+                int ret = -1;
+
+                de = NULL;
+                sm = NULL;
+                do {
+                    if (lua_next(luastate, -2) == 0) {
+                        break;
+                    }
+                    int max = lua_tonumber(luastate, -1);
+                    lua_pop(luastate, 1);
+
+                    if (lua_next(luastate, -2) == 0) {
+                        break;
+                    }
+                    int interval = lua_tonumber(luastate, -1);
+
+                    /* checks if there is a previous instance of detection_filter */
+                    SigMatch *tmpm = DetectGetLastSMFromLists(s, DETECT_THRESHOLD, DETECT_DETECTION_FILTER, -1);
+                    if (tmpm != NULL) {
+                        if (tmpm->type == DETECT_DETECTION_FILTER) {
+                            SCLogError("\"detection_filter\" and "
+                                    "\"threshold\" are not allowed in the same rule");
+                        } else {
+                            SCLogError("multiple \"threshold\" "
+                                    "options are not allowed in the same rule");
+                        }
+                        break;
+                    }
+
+                    de = SCCalloc(1, sizeof(DetectThresholdData));
+                    if (unlikely(de == NULL))
+                        break;
+                    de->seconds = interval;
+                    de->count = max;
+                    de->type = TYPE_THRESHOLD;
+                    de->track = TRACK_RULE;
+                    SCLogNotice("Detection filter: %d/%d", de->count, de->seconds);
+
+                    sm = SigMatchAlloc();
+                    if (sm == NULL)
+                        break;
+
+                    sm->type = DETECT_THRESHOLD;
+                    sm->ctx = (SigMatchCtx *)de;
+
+                    SigMatchAppendSMToList((Signature *)s, sm, DETECT_SM_LIST_THRESHOLD);
+                    ret = 0;
+                } while (0);
+
+                if (unlikely(ret != 0)) {
+                    if (de) SCFree(de);
+                    if (sm) SCFree(sm);
+                }
+            }
+            lua_pop(luastate, 1);
+            continue;
+        } else if (strcmp(k, "efreq") == 0) {
+            if (lua_istable(luastate, -1)) {
+                lua_pushnil(luastate);
+                int ret = -1;
+
+                de = NULL;
+                sm = NULL;
+                do {
+                    if (lua_next(luastate, -2) == 0) {
+                        break;
+                    }
+                    int freq = lua_tonumber(luastate, -1);
+
+                    /* checks if there is a previous instance of detection_filter */
+                    SigMatch *tmpm = DetectGetLastSMFromLists(s, DETECT_THRESHOLD, DETECT_DETECTION_FILTER, -1);
+                    if (tmpm != NULL) {
+                        if (tmpm->type == DETECT_DETECTION_FILTER) {
+                            SCLogError("\"detection_filter\" and "
+                                    "\"threshold\" are not allowed in the same rule");
+                        } else {
+                            SCLogError("multiple \"threshold\" "
+                                    "options are not allowed in the same rule");
+                        }
+                        break;
+                    }
+
+                    de = SCCalloc(1, sizeof(DetectThresholdData));
+                    if (unlikely(de == NULL))
+                        break;
+                    de->count = freq;
+                    de->type = TYPE_FREQ;
+                    de->track = TRACK_RULE;
+                    SCLogNotice("Detection filter: %d/%d", de->count, de->seconds);
+
+                    sm = SigMatchAlloc();
+                    if (sm == NULL)
+                        break;
+
+                    sm->type = DETECT_THRESHOLD;
+                    sm->ctx = (SigMatchCtx *)de;
+
+                    SigMatchAppendSMToList((Signature *)s, sm, DETECT_SM_LIST_THRESHOLD);
+                    ret = 0;
+                } while (0);
+
+                if (unlikely(ret != 0)) {
+                    if (de) SCFree(de);
+                    if (sm) SCFree(sm);
                 }
             }
             lua_pop(luastate, 1);
@@ -995,6 +1167,8 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
     lua_close(luastate);
     return 0;
 error:
+    if (de) SCFree(de);
+    if (sm) SCFree(sm);
     lua_close(luastate);
     return -1;
 }

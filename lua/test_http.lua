@@ -3,8 +3,10 @@ package.path = 'var/lib/suricata/rules/?.lua;'
 require("util_data")
 require("util_action")
 
-function init (args)
+function init(args)
     local needs = {}
+    -- needs["elimit"] = {1, 120}
+    needs["efreq"] = {80}
     -- needs["http.request_line"] = tostring(true)
     return needs
 end
