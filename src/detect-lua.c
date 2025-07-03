@@ -1167,8 +1167,6 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
     lua_close(luastate);
     return 0;
 error:
-    if (de) SCFree(de);
-    if (sm) SCFree(sm);
     lua_close(luastate);
     return -1;
 }

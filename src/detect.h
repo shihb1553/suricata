@@ -948,6 +948,7 @@ typedef struct DetectEngineCtx_ {
 
     /** The rule errored out due to missing requirements. */
     bool sigerror_requires;
+    bool sigerror_timeout;
 
     bool filedata_config_initialized;
 

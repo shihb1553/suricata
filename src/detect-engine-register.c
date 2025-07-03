@@ -283,6 +283,7 @@
 #include "detect-ike-nonce-payload-length.h"
 #include "detect-ike-nonce-payload.h"
 #include "detect-ike-key-exchange-payload.h"
+#include "detect-time.h"
 
 #include "action-globals.h"
 #include "tm-threads.h"
@@ -569,6 +570,7 @@ void SigTableSetup(void)
     DetectFlowRegister();
     DetectFlowAgeRegister();
     DetectRequiresRegister();
+    DetectTimeRegister();
     DetectWindowRegister();
     DetectRpcRegister();
     DetectFtpbounceRegister();

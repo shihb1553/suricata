@@ -527,10 +527,10 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
         {
             if (lookup_tsh != NULL) {
                 if (lookup_tsh->current_count * 100 / (lookup_tsh->current_count+lookup_tsh->tv_timeout) <= td->count) {
-                    lookup_tsh->current_count++;
+                    lookup_tsh->current_count++;    // 复用变量，统计已上报告警数
                     ret = 1;
                 } else {
-                    lookup_tsh->tv_timeout++;
+                    lookup_tsh->tv_timeout++;       // 复用变量，统计未上报告警数
                 }
             } else {
                 *new_tsh = DetectThresholdEntryAlloc(td, p, sid, gid);

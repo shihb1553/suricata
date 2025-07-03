@@ -342,6 +342,7 @@ enum DetectKeywordId {
     DETECT_AL_JA4_HASH,
 
     DETECT_RECORD,
+    DETECT_TIME,
 
     /* make sure this stays last */
     DETECT_TBLSIZE,

@@ -327,6 +327,7 @@ noinst_HEADERS = \
 	detect-template.h \
 	detect-template-rust-buffer.h \
 	detect-threshold.h \
+	detect-time.h \
 	detect-tls-cert-fingerprint.h \
 	detect-tls-cert-issuer.h \
 	detect-tls-cert-serial.h \
@@ -952,6 +953,7 @@ libsuricata_c_a_SOURCES = \
 	detect-template.c \
 	detect-template-rust-buffer.c \
 	detect-threshold.c \
+	detect-time.c \
 	detect-tls.c \
 	detect-tls-cert-fingerprint.c \
 	detect-tls-cert-issuer.c \
