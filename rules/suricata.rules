@@ -12,6 +12,6 @@
 
 # alert http any any -> any any (http.uri; byte_test:4,=,0x6e6c6f61,4; sid:1000002;)
 # alert udp any any -> any any (byte_extract:1,48,offset_var; byte_test:2,=,0x7007,offset_var,little; sid:1000002;)
-# alert http any any -> any any (http.uri; content: "download.html"; lua:test_http.lua; sid:1000002;)
+# alert http any any -> any any (http.uri; content: "download.html"; lua:test_http.lua; time:<1751524260; sid:1000002;)
 # alert http any any -> any any (http.uri; content: "down"; content: "html"; sid:1000002;)
-alert http any any -> any any (http.uri; content: "download.html"; lua:test_http.lua; time:<1751524260; sid:1000002;)
+alert http any any -> any any (http.uri; content: "download.html"; lua:test_http.lua; sid:1000002;)

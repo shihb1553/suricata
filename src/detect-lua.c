@@ -871,6 +871,9 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                         break;
                     }
                     int delay = lua_tonumber(luastate, -1);
+                    lua_pop(luastate, 1);
+
+                    lua_next(luastate, -2);
 
                     /* checks if there is a previous instance of detection_filter */
                     SigMatch *tmpm = DetectGetLastSMFromLists(s, DETECT_THRESHOLD, DETECT_DETECTION_FILTER, -1);
@@ -930,6 +933,9 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                         break;
                     }
                     int interval = lua_tonumber(luastate, -1);
+                    lua_pop(luastate, 1);
+
+                    lua_next(luastate, -2);
 
                     /* checks if there is a previous instance of detection_filter */
                     SigMatch *tmpm = DetectGetLastSMFromLists(s, DETECT_THRESHOLD, DETECT_DETECTION_FILTER, -1);
@@ -983,6 +989,8 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                         break;
                     }
                     int freq = lua_tonumber(luastate, -1);
+                    lua_pop(luastate, 1);
+                    lua_next(luastate, -2);
 
                     /* checks if there is a previous instance of detection_filter */
                     SigMatch *tmpm = DetectGetLastSMFromLists(s, DETECT_THRESHOLD, DETECT_DETECTION_FILTER, -1);
