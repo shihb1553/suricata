@@ -265,6 +265,7 @@ noinst_HEADERS = \
 	detect-mqtt-type.h \
 	detect-mqtt-unsubscribe-topic.h \
 	detect-msg.h \
+	detect-network.h \
 	detect-nfs-procedure.h \
 	detect-nfs-version.h \
 	detect-noalert.h \
@@ -891,6 +892,7 @@ libsuricata_c_a_SOURCES = \
 	detect-mqtt-type.c \
 	detect-mqtt-unsubscribe-topic.c \
 	detect-msg.c \
+	detect-network.c \
 	detect-nfs-procedure.c \
 	detect-nfs-version.c \
 	detect-noalert.c \

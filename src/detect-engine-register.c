@@ -132,6 +132,7 @@
 #include "detect-dataset.h"
 #include "detect-datarep.h"
 #include "detect-dsize.h"
+#include "detect-network.h"
 #include "detect-flowvar.h"
 #include "detect-flowint.h"
 #include "detect-pktvar.h"
@@ -580,6 +581,7 @@ void SigTableSetup(void)
     DetectDsizeRegister();
     DetectDatasetRegister();
     DetectDatarepRegister();
+    DetectNetworkRegister();
     DetectFlowvarRegister();
     DetectFlowintRegister();
     DetectPktvarRegister();

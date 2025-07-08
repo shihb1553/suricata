@@ -343,6 +343,10 @@ enum DetectKeywordId {
 
     DETECT_RECORD,
     DETECT_TIME,
+    DETECT_NETWORK,
+    DETECT_NETWORKA,
+    DETECT_NETWORKB,
+    DETECT_NETWORKC,
 
     /* make sure this stays last */
     DETECT_TBLSIZE,
