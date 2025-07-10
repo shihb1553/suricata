@@ -345,6 +345,7 @@ noinst_HEADERS = \
 	detect-tls-random.h \
 	detect-tos.h \
 	detect-transform-casechange.h \
+	detect-transform-codec.h \
 	detect-transform-compress-whitespace.h \
 	detect-transform-dotprefix.h \
 	detect-transform-header-lowercase.h \
@@ -972,6 +973,7 @@ libsuricata_c_a_SOURCES = \
 	detect-tls-random.c \
 	detect-tos.c \
 	detect-transform-casechange.c \
+	detect-transform-codec.c \
 	detect-transform-compress-whitespace.c \
 	detect-transform-dotprefix.c \
 	detect-transform-header-lowercase.c \

@@ -239,6 +239,7 @@
 #include "detect-ftpdata.h"
 #include "detect-engine-content-inspection.h"
 
+#include "detect-transform-codec.h"
 #include "detect-transform-compress-whitespace.h"
 #include "detect-transform-strip-whitespace.h"
 #include "detect-transform-strip-pseudo-headers.h"
@@ -700,6 +701,7 @@ void SigTableSetup(void)
     DetectBypassRegister();
     DetectConfigRegister();
 
+    DetectTransformCodecRegister();
     DetectTransformCompressWhitespaceRegister();
     DetectTransformStripWhitespaceRegister();
     DetectTransformStripPseudoHeadersRegister();
