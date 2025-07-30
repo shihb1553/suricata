@@ -216,7 +216,6 @@ static int DetectNetworkMatchTest02(void)
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
 
-    FlowShutdown();
     StorageCleanup();
 
     PASS;
