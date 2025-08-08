@@ -332,14 +332,14 @@ int HTTPParseContentDispositionHeader(uint8_t *name, size_t name_len,
         uint8_t *data, size_t len, uint8_t **retptr, size_t *retlen);
 void HtpFlagDetectStateNewFile(HtpTxUserData *tx, int dir);
 
-inline uint64_t HtpGetActiveRequestTxID(HtpState *s)
+static inline uint64_t HtpGetActiveRequestTxID(HtpState *s)
 {
     uint64_t id = HTPStateGetTxCnt(s);
     BUG_ON(id == 0);
     return id - 1;
 }
 
-inline uint64_t HtpGetActiveResponseTxID(HtpState *s)
+static inline uint64_t HtpGetActiveResponseTxID(HtpState *s)
 {
     return s->transaction_cnt;
 }
