@@ -538,6 +538,12 @@ const struct DecodeEvents_ DEvents[] = {
             GENEVE_UNKNOWN_PAYLOAD_TYPE,
     },
 
+    /* Gtp events */
+    {
+            "decoder.gtp.unknown_payload_type",
+            GTP_UNKNOWN_PAYLOAD_TYPE,
+    },
+
     /* ERSPAN events */
     {
             "decoder.erspan.header_too_small",
