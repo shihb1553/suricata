@@ -93,6 +93,7 @@ outputs:
       enabled: @e_enable_evelog@
       filetype: regular #regular|syslog|unix_dgram|unix_stream|redis
       filename: eve.json
+      append: no
       # Enable for multi-threaded eve.json output; output files are amended with
       # an identifier, e.g., eve.9.json
       #threaded: false
@@ -174,6 +175,7 @@ outputs:
             # (e.g: the alert may have action 'allowed' but the verdict be
             # 'drop' due to another alert. That's the engine's verdict)
             # verdict: yes
+            customdata: yes
         # app layer frames
         - frame:
             # disabled by default as this is very verbose.
@@ -316,6 +318,7 @@ outputs:
             enabled: no
             # passwords: yes           # enable output of passwords. Disabled by default
         - stats:
+            enabled: no
             totals: yes       # stats for all threads merged together
             threads: no       # per thread stats
             deltas: no        # include delta values
@@ -398,7 +401,7 @@ outputs:
   # - encrypted streams after the key exchange
   #
   - pcap-log:
-      enabled: no
+      enabled: yes
       filename: log.pcap
 
       # File size limit.  Can be specified in kb, mb, gb.  Just a number
@@ -431,7 +434,7 @@ outputs:
       honor-pass-rules: no # If set to "yes", flows in which a pass rule matched will stop being logged.
       # Use "all" to log all packets or use "alerts" to log only alerted packets and flows or "tag"
       # to log only flow tagged via the "tag" keyword
-      #conditional: all
+      conditional: record
 
   # a full alert log containing much information for signature writers
   # or for investigating suspected false positives.
@@ -1252,7 +1255,7 @@ security:
 
   lua:
     # Allow Lua rules. Disabled by default.
-    #allow-rules: false
+    allow-rules: true
 
 # Some logging modules will use that name in event as identifier. The default
 # value is the hostname
@@ -1611,7 +1614,7 @@ stream:
   memcap: 64mb
   #memcap-policy: ignore
   checksum-validation: yes      # reject incorrect csums
-  #midstream: false
+  midstream: true
   #midstream-policy: ignore
   inline: auto                  # auto will use inline mode in IPS mode, yes or no set it statically
   reassembly:
@@ -1776,7 +1779,7 @@ spm-algo: auto
 
 # Suricata is multi-threaded. Here the threading can be influenced.
 threading:
-  set-cpu-affinity: no
+  set-cpu-affinity: yes
   # Tune cpu affinity of threads. Each family of threads can be bound
   # to specific CPUs.
   #

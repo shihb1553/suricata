@@ -133,6 +133,7 @@ noinst_HEADERS = \
 	detect-engine-analyzer.h \
 	detect-engine-build.h \
 	detect-engine-content-inspection.h \
+	detect-engine-customdata.h \
 	detect-engine-dcepayload.h \
 	detect-engine-enip.h \
 	detect-engine-event.h \
@@ -148,6 +149,7 @@ noinst_HEADERS = \
 	detect-engine-prefilter.h \
 	detect-engine-profile.h \
 	detect-engine-proto.h \
+	detect-engine-record.h \
 	detect-engine-register.h \
 	detect-engine-siggroup.h \
 	detect-engine-sigorder.h \
@@ -265,6 +267,7 @@ noinst_HEADERS = \
 	detect-mqtt-type.h \
 	detect-mqtt-unsubscribe-topic.h \
 	detect-msg.h \
+	detect-network.h \
 	detect-nfs-procedure.h \
 	detect-nfs-version.h \
 	detect-noalert.h \
@@ -277,6 +280,7 @@ noinst_HEADERS = \
 	detect-prefilter.h \
 	detect-priority.h \
 	detect-rawbytes.h \
+	detect-record.h \
 	detect-reference.h \
 	detect-replace.h \
 	detect-requires.h \
@@ -326,6 +330,7 @@ noinst_HEADERS = \
 	detect-template.h \
 	detect-template-rust-buffer.h \
 	detect-threshold.h \
+	detect-time.h \
 	detect-tls-cert-fingerprint.h \
 	detect-tls-cert-issuer.h \
 	detect-tls-cert-serial.h \
@@ -342,6 +347,7 @@ noinst_HEADERS = \
 	detect-tls-random.h \
 	detect-tos.h \
 	detect-transform-casechange.h \
+	detect-transform-codec.h \
 	detect-transform-compress-whitespace.h \
 	detect-transform-dotprefix.h \
 	detect-transform-header-lowercase.h \
@@ -361,6 +367,7 @@ noinst_HEADERS = \
 	detect-xbits.h \
 	device-storage.h \
 	feature.h \
+	fifo.h \
 	flow-bit.h \
 	flow-bypass.h \
 	flow.h \
@@ -470,6 +477,7 @@ noinst_HEADERS = \
 	runmode-windivert.h \
 	rust-context.h \
 	rust.h \
+	usocket.h \
 	source-af-packet.h \
 	source-af-xdp.h \
 	source-dpdk.h \
@@ -525,6 +533,7 @@ noinst_HEADERS = \
 	util-buffer.h \
 	util-byte.h \
 	util-checksum.h \
+	util-charset.h \
 	util-cidr.h \
 	util-classification-config.h \
 	util-clock.h \
@@ -585,6 +594,7 @@ noinst_HEADERS = \
 	util-memcmp.h \
 	util-memcpy.h \
 	util-mem.h \
+	util-memory-decompression.h \
 	util-memrchr.h \
 	util-misc.h \
 	util-mpm-ac-bs.h \
@@ -761,6 +771,7 @@ libsuricata_c_a_SOURCES = \
 	detect-engine-build.c \
 	detect-engine.c \
 	detect-engine-content-inspection.c \
+	detect-engine-customdata.c \
 	detect-engine-dcepayload.c \
 	detect-engine-enip.c \
 	detect-engine-event.c \
@@ -775,6 +786,7 @@ libsuricata_c_a_SOURCES = \
 	detect-engine-prefilter-common.c \
 	detect-engine-profile.c \
 	detect-engine-proto.c \
+	detect-engine-record.c \
 	detect-engine-register.c \
 	detect-engine-siggroup.c \
 	detect-engine-sigorder.c \
@@ -890,6 +902,7 @@ libsuricata_c_a_SOURCES = \
 	detect-mqtt-type.c \
 	detect-mqtt-unsubscribe-topic.c \
 	detect-msg.c \
+	detect-network.c \
 	detect-nfs-procedure.c \
 	detect-nfs-version.c \
 	detect-noalert.c \
@@ -902,6 +915,7 @@ libsuricata_c_a_SOURCES = \
 	detect-prefilter.c \
 	detect-priority.c \
 	detect-rawbytes.c \
+	detect-record.c \
 	detect-reference.c \
 	detect-replace.c \
 	detect-requires.c \
@@ -951,6 +965,7 @@ libsuricata_c_a_SOURCES = \
 	detect-template.c \
 	detect-template-rust-buffer.c \
 	detect-threshold.c \
+	detect-time.c \
 	detect-tls.c \
 	detect-tls-cert-fingerprint.c \
 	detect-tls-cert-issuer.c \
@@ -967,6 +982,7 @@ libsuricata_c_a_SOURCES = \
 	detect-tls-random.c \
 	detect-tos.c \
 	detect-transform-casechange.c \
+	detect-transform-codec.c \
 	detect-transform-compress-whitespace.c \
 	detect-transform-dotprefix.c \
 	detect-transform-header-lowercase.c \
@@ -986,6 +1002,7 @@ libsuricata_c_a_SOURCES = \
 	detect-xbits.c \
 	device-storage.c \
 	feature.c \
+	fifo.c \
 	flow-bit.c \
 	flow-bypass.c \
 	flow.c \
@@ -1092,6 +1109,7 @@ libsuricata_c_a_SOURCES = \
 	runmode-unix-socket.c \
 	runmode-windivert.c \
 	rust-context.c \
+	usocket.c \
 	source-af-packet.c \
 	source-af-xdp.c \
 	source-dpdk.c \
@@ -1136,6 +1154,7 @@ libsuricata_c_a_SOURCES = \
 	util-buffer.c \
 	util-byte.c \
 	util-checksum.c \
+	util-charset.c \
 	util-cidr.c \
 	util-classification-config.c \
 	util-conf.c \
@@ -1192,6 +1211,7 @@ libsuricata_c_a_SOURCES = \
 	util-magic.c \
 	util-mem.c \
 	util-memcmp.c \
+	util-memory-decompression.c \
 	util-memrchr.c \
 	util-misc.c \
 	util-mpm-ac-bs.c \

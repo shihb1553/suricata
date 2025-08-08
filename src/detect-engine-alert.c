@@ -21,6 +21,7 @@
 #include "detect-engine-alert.h"
 #include "detect-engine-threshold.h"
 #include "detect-engine-tag.h"
+#include "detect-engine-record.h"
 
 #include "decode.h"
 #include "packet.h"
@@ -274,6 +275,9 @@ static inline PacketAlert PacketAlertSet(
     /* Set tx_id if the frame has it */
     pa.tx_id = tx_id;
     pa.frame_id = (alert_flags & PACKET_ALERT_FLAG_FRAME) ? det_ctx->frame_id : 0;
+
+    pa.customdatalist = det_ctx->customdatalist;
+    det_ctx->customdatalist = NULL;
     return pa;
 }
 
@@ -445,8 +449,10 @@ void PacketAlertFinalize(DetectEngineCtx *de_ctx, DetectEngineThreadCtx *det_ctx
 
     /* At this point, we should have all the new alerts. Now check the tag
      * keyword context for sessions and hosts */
-    if (!(p->flags & PKT_PSEUDO_STREAM_END))
+    if (!(p->flags & PKT_PSEUDO_STREAM_END)) {
         TagHandlePacket(de_ctx, det_ctx, p);
+        RecordHandlePacket(de_ctx, det_ctx, p);
+    }
 
     /* Set flag on flow to indicate that it has alerts */
     if (p->flow != NULL && p->alerts.cnt > 0) {
