@@ -289,4 +289,6 @@ void TmThreadsGetMinimalTimestamp(struct timeval *ts);
 uint16_t TmThreadsGetWorkerThreadMax(void);
 bool TmThreadsTimeSubsysIsReady(void);
 
+int TmThreadsGetThreadNumByCPUAffinity(uint16_t cpu);
+
 #endif /* __TM_THREADS_H__ */

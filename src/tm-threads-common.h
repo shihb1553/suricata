@@ -76,6 +76,8 @@ typedef enum {
 
     TMM_UNIXMANAGER,
 
+    TMM_USOCKET,
+
     TMM_SIZE,
 } TmmId;
 
@@ -95,4 +97,3 @@ enum {
 };
 
 #endif /* __TM_THREADS_COMMON_H__ */
-

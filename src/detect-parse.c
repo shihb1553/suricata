@@ -897,7 +897,7 @@ static int SigParseOptions(DetectEngineCtx *de_ctx, Signature *s, char *optstr, 
 
     /* Check for options that are only to be processed during the
      * first "requires" pass. */
-    bool requires_only = strcasecmp(optname, "requires") == 0 || strcasecmp(optname, "sid") == 0;
+    bool requires_only = strcasecmp(optname, "requires") == 0 || strcasecmp(optname, "time") == 0 || strcasecmp(optname, "sid") == 0;
     if ((requires && !requires_only) || (!requires && requires_only)) {
         goto finish;
     }
@@ -2174,6 +2174,11 @@ static Signature *SigInitHelper(DetectEngineCtx *de_ctx, const char *sigstr,
         de_ctx->sigerror_ok = true;
         de_ctx->sigerror_requires = true;
         goto error;
+    } else if (ret == -5) {
+        de_ctx->sigerror_silent = true;
+        de_ctx->sigerror_ok = true;
+        de_ctx->sigerror_timeout = true;
+        goto error;
     } else if (ret < 0) {
         goto error;
     }
@@ -2186,7 +2191,7 @@ static Signature *SigInitHelper(DetectEngineCtx *de_ctx, const char *sigstr,
 
     /* Now completely parse the rule. */
     ret = SigParse(de_ctx, sig, sigstr, dir, &parser, false);
-    BUG_ON(ret == -4);
+    BUG_ON(ret == -4 || ret == -5);
     if (ret == -3) {
         de_ctx->sigerror_silent = true;
         de_ctx->sigerror_ok = true;
@@ -2341,6 +2346,7 @@ Signature *SigInit(DetectEngineCtx *de_ctx, const char *sigstr)
     de_ctx->sigerror_ok = false;
     de_ctx->sigerror_silent = false;
     de_ctx->sigerror_requires = false;
+    de_ctx->sigerror_timeout = false;
 
     Signature *sig;
 

@@ -751,6 +751,14 @@ typedef struct DetectVarList_ {
     struct DetectVarList_ *next;
 } DetectVarList;
 
+typedef struct DetectCustomdataList_ {
+    uint16_t key_len;
+    uint16_t value_len;
+    uint8_t *key;
+    uint8_t *value;
+    struct DetectCustomdataList_ *next;
+} DetectCustomdataList;
+
 typedef struct SCFPSupportSMList_ {
     int list_id;
     int priority;
@@ -941,6 +949,7 @@ typedef struct DetectEngineCtx_ {
 
     /** The rule errored out due to missing requirements. */
     bool sigerror_requires;
+    bool sigerror_timeout;
 
     bool filedata_config_initialized;
 
@@ -1221,6 +1230,8 @@ typedef struct DetectEngineThreadCtx_ {
     DetectReplaceList *replist;
     /* vars to store in post match function */
     DetectVarList *varlist;
+
+    DetectCustomdataList *customdatalist;
 
     /* Array in which the filestore keyword stores file id and tx id. If the
      * full signature matches, these are processed by a post-match filestore
@@ -1619,4 +1630,3 @@ void DumpPatterns(DetectEngineCtx *de_ctx);
 
 
 #endif /* __DETECT_H__ */
-

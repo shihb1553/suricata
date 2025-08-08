@@ -2165,6 +2165,24 @@ void TmThreadsListThreads(void)
     SCMutexUnlock(&thread_store_lock);
 }
 
+int TmThreadsGetThreadNumByCPUAffinity(uint16_t cpu)
+{
+    int thread_num = 0;
+
+    SCMutexLock(&thread_store_lock);
+    for (size_t s = 0; s < thread_store.threads_size; s++) {
+        Thread *t = &thread_store.threads[s];
+        if (t == NULL || t->in_use == 0)
+            continue;
+
+        if (t->tv && t->tv->cpu_affinity == cpu)
+            thread_num++;
+    }
+    SCMutexUnlock(&thread_store_lock);
+
+    return thread_num;
+}
+
 #define STEP 32
 /**
  *  \retval id thread id, or 0 if not found

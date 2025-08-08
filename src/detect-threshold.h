@@ -31,6 +31,7 @@
 #define TYPE_DETECTION 4
 #define TYPE_RATE      5
 #define TYPE_SUPPRESS  6
+#define TYPE_FREQ      7
 
 #define TRACK_DST      1
 #define TRACK_SRC      2
