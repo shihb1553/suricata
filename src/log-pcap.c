@@ -69,7 +69,8 @@
 typedef enum LogModeConditionalType_ {
     LOGMODE_COND_ALL,
     LOGMODE_COND_ALERTS,
-    LOGMODE_COND_TAG
+    LOGMODE_COND_TAG,
+    LOGMODE_COND_RECORD,
 } LogModeConditionalType;
 
 #define RING_BUFFER_MODE_DISABLED       0
@@ -244,6 +245,13 @@ static int PcapLogCondition(ThreadVars *tv, void *thread_data, const Packet *p)
             break;
         case LOGMODE_COND_TAG:
             if (p->flags & (PKT_HAS_TAG | PKT_FIRST_TAG)) {
+                return TRUE;
+            } else {
+                return FALSE;
+            }
+            break;
+        case LOGMODE_COND_RECORD:
+            if (p->flags & PKT_HAS_RECORD) {
                 return TRUE;
             } else {
                 return FALSE;
@@ -1080,6 +1088,7 @@ static TmEcode PcapLogDataInit(ThreadVars *t, const void *initdata, void **data)
             switch (pl->conditional) {
                 case LOGMODE_COND_ALERTS:
                 case LOGMODE_COND_TAG:
+                case LOGMODE_COND_RECORD:
                     FatalError("Can't have multiple link types in pcap conditional mode.");
                     break;
                 default:
@@ -1603,6 +1612,9 @@ static OutputInitResult PcapLogInitCtx(ConfNode *conf)
                 EnableTcpSessionDumping();
             } else if (strcasecmp(s_conditional, "tag") == 0) {
                 pl->conditional = LOGMODE_COND_TAG;
+                EnableTcpSessionDumping();
+            } else if (strcasecmp(s_conditional, "record") == 0) {
+                pl->conditional = LOGMODE_COND_RECORD;
                 EnableTcpSessionDumping();
             } else if (strcasecmp(s_conditional, "all") != 0) {
                 FatalError("log-pcap: invalid conditional \"%s\". Valid options: \"all\", "

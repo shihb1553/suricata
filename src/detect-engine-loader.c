@@ -205,6 +205,12 @@ static int DetectLoadSigFile(
                         line, sig_file, lineno - multiline);
                 skipped++;
             }
+            if (de_ctx->sigerror_timeout) {
+                SCLogInfo("Skipping signature due to timeout: %s from file %s at line "
+                          "%" PRId32,
+                        line, sig_file, lineno - multiline);
+                skipped++;
+            }
         }
         multiline = 0;
     }

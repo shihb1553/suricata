@@ -49,6 +49,7 @@
 #include "detect-base64-data.h"
 #include "detect-dataset.h"
 #include "detect-datarep.h"
+#include "detect-network.h"
 
 #include "util-spm.h"
 #include "util-debug.h"
@@ -687,6 +688,15 @@ uint8_t DetectEngineContentInspection(DetectEngineCtx *de_ctx, DetectEngineThrea
                 }
             }
         }
+    } else if (smd->type == DETECT_NETWORK) {
+        // PrintRawDataFp(stdout, buffer, buffer_len);
+        const DetectNetworkData *sd = (const DetectNetworkData *) smd->ctx;
+        int r = DetectNetworkBufferMatch(det_ctx, sd, buffer, buffer_len);
+        if (r == 1) {
+            goto match;
+        }
+        det_ctx->discontinue_matching = 1;
+        goto no_match;
     } else {
         SCLogDebug("sm->type %u", smd->type);
 #ifdef DEBUG

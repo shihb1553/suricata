@@ -104,6 +104,7 @@
 #define LOG_JSON_RULE_METADATA     BIT_U16(8)
 #define LOG_JSON_RULE              BIT_U16(9)
 #define LOG_JSON_VERDICT           BIT_U16(10)
+#define LOG_JSON_RULE_CUSTOMDATA   BIT_U16(11)
 
 #define METADATA_DEFAULTS ( LOG_JSON_FLOW |                        \
             LOG_JSON_APP_LAYER  |                                  \
@@ -355,6 +356,35 @@ static void AlertJsonMetadata(AlertJsonOutputCtx *json_output_ctx,
     }
 }
 
+static void AlertJsonCustomdata(AlertJsonOutputCtx *json_output_ctx,
+        const PacketAlert *pa, JsonBuilder *js)
+{
+    DetectCustomdataList *next;
+    DetectCustomdataList *cd = pa->customdatalist;
+    if (cd == NULL) {
+        return;
+    }
+
+    jb_open_object(js, "customdata");
+    do {
+        next = cd->next;
+
+        if (cd->key && cd->value) {
+            jb_set_string(js, (const char *)cd->key, (const char *)cd->value);
+        }
+
+        if (cd->key) {
+            SCFree(cd->key);
+        }
+        if (cd->value) {
+            SCFree(cd->value);
+        }
+        SCFree(cd);
+        cd = next;
+    } while (cd != NULL);
+    jb_close(js);
+}
+
 void AlertJsonHeader(void *ctx, const Packet *p, const PacketAlert *pa, JsonBuilder *js,
         uint16_t flags, JsonAddrInfo *addr, char *xff_buffer)
 {
@@ -404,6 +434,10 @@ void AlertJsonHeader(void *ctx, const Packet *p, const PacketAlert *pa, JsonBuil
 
     if ((json_output_ctx != NULL) && (flags & LOG_JSON_RULE_METADATA)) {
         AlertJsonMetadata(json_output_ctx, pa, js);
+    }
+
+    if ((json_output_ctx != NULL) && (flags & LOG_JSON_RULE_CUSTOMDATA)) {
+        AlertJsonCustomdata(json_output_ctx, pa, js);
     }
 
     if (flags & LOG_JSON_RULE) {
@@ -1118,6 +1152,7 @@ static void JsonAlertLogSetupMetadata(AlertJsonOutputCtx *json_output_ctx,
         SetFlag(conf, "http-body-printable", LOG_JSON_HTTP_BODY, &flags);
         SetFlag(conf, "http-body", LOG_JSON_HTTP_BODY_BASE64, &flags);
         SetFlag(conf, "verdict", LOG_JSON_VERDICT, &flags);
+        SetFlag(conf, "customdata", LOG_JSON_RULE_CUSTOMDATA, &flags);
 
         /* Check for obsolete flags and warn that they have no effect. */
         static const char *deprecated_flags[] = { "http", "tls", "ssh", "smtp", "dnp3", "app-layer",

@@ -36,14 +36,19 @@
 #include "detect-engine.h"
 #include "detect-engine-mpm.h"
 #include "detect-engine-state.h"
+#include "detect-engine-customdata.h"
+#include "detect-engine-record.h"
+#include "detect-record.h"
 
 #include "flow.h"
 #include "flow-var.h"
 #include "flow-util.h"
 
+#include "util-charset.h"
 #include "util-debug.h"
 #include "util-spm-bm.h"
 #include "util-print.h"
+#include "util-memory-decompression.h"
 
 #include "util-unittest.h"
 #include "util-unittest-helper.h"
@@ -58,6 +63,8 @@
 #include "util-cpu.h"
 
 #include "app-layer-parser.h"
+
+#include "usocket.h"
 
 #ifdef HAVE_LUA
 
@@ -506,6 +513,329 @@ static int LuaGetByteVar(lua_State *luastate)
     return 1;
 }
 
+static int LuaSetDetectCustomData(lua_State *luastate)
+{
+    DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
+
+    if (det_ctx == NULL)
+        return LuaCallbackError(luastate, "internal error: no ldet_ctx");
+
+    if (!lua_isstring(luastate, 1)) {
+        LUA_ERROR("1st arg not a string");
+    }
+    const char *key = lua_tostring(luastate, 1);
+    if (key == NULL) {
+        LUA_ERROR("key is NULL");
+    }
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *value = lua_tostring(luastate, 2);
+    if (value == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    return CustomdataAdd(det_ctx, key, value, strlen(key), strlen(value));
+}
+
+static int LuaSetRecord(lua_State *luastate)
+{
+    DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
+
+    if (det_ctx == NULL)
+        return LuaCallbackError(luastate, "internal error: no ldet_ctx");
+
+    /* type, fmt, packets, bytes, seconds */
+    if (!lua_isstring(luastate, 1)) {
+        LUA_ERROR("1st arg not a string");
+    }
+    const char *type = lua_tostring(luastate, 1);
+    if (type == NULL) {
+        LUA_ERROR("type is NULL");
+    }
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *fmt = lua_tostring(luastate, 2);
+    if (fmt == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    if (!lua_isnumber(luastate, 3)) {
+        LUA_ERROR("3rd arg not a number");
+    }
+    int packets = lua_tonumber(luastate, 3);
+
+    if (!lua_isnumber(luastate, 4)) {
+        LUA_ERROR("4th arg not a number");
+    }
+    int bytes = lua_tonumber(luastate, 4);
+
+    if (!lua_isnumber(luastate, 5)) {
+        LUA_ERROR("5th arg not a number");
+    }
+    int seconds = lua_tonumber(luastate, 5);
+
+    Packet *p = det_ctx->p;
+    DetectRecordDataEntry rde;
+    memset(&rde, 0, sizeof(DetectRecordDataEntry));
+
+    rde.last_ts = rde.first_ts = SCTIME_SECS(p->ts);
+    rde.packet_limit = packets;
+    rde.byte_limit = bytes;
+    rde.time_limit = seconds;
+    rde.file = strdup(fmt);
+
+    if (strcmp(type, "one-packet") == 0) {
+        p->flags |= PKT_HAS_RECORD;
+    } else if (strcmp(type, "ippairs") == 0) {
+        RecordIPPairAdd(&rde, p);
+    } else if (strcmp(type, "session") == 0) {
+        RecordFlowAdd(&rde, p);
+    } else {
+        LUA_ERROR("invalid type");
+    }
+
+    return 0;
+}
+
+static int LuaSetUSocket(lua_State *luastate)
+{
+    DetectEngineThreadCtx *det_ctx = LuaStateGetDetCtx(luastate);
+
+    if (det_ctx == NULL)
+        return LuaCallbackError(luastate, "internal error: no ldet_ctx");
+
+    /* id, ip, port */
+    if (!lua_isnumber(luastate, 1)) {
+        LUA_ERROR("1rd arg not a number");
+    }
+    int id = lua_tonumber(luastate, 1);
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *ip = lua_tostring(luastate, 2);
+    if (ip == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    if (!lua_isnumber(luastate, 3)) {
+        LUA_ERROR("3th arg not a number");
+    }
+    int port = lua_tonumber(luastate, 3);
+
+    USocketData data;
+    if (inet_pton(AF_INET, ip, &data.addr) <= 0) {
+        LUA_ERROR("invalid ip address");
+    }
+    data.port = (uint16_t)port;
+    data.len = GET_PKT_LEN(det_ctx->p) + 24;
+
+    struct USocketDataM {
+        char header[8];
+        uint64_t len;
+        int64_t id;
+        char data[];
+    } *mdata = malloc(sizeof(struct USocketDataM) + GET_PKT_LEN(det_ctx->p));
+    if (mdata == NULL) {
+        LUA_ERROR("failed to allocate memory");
+    }
+    memcpy(mdata->header, "usocket0", 8);
+    mdata->len = GET_PKT_LEN(det_ctx->p) + 16;
+    mdata->id = id;
+    memcpy(mdata->data, GET_PKT_DATA(det_ctx->p), GET_PKT_LEN(det_ctx->p));
+    data.data = (char *)mdata;
+
+    return USocketEnqueue(det_ctx->tv->id, &data);
+}
+
+static int LuaZipStr(lua_State *luastate)
+{
+    if (!lua_isstring(luastate, 1)) {
+        LUA_ERROR("1nd arg not a string");
+    }
+    const char *str = lua_tostring(luastate, 1);
+    if (str == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+    uLong str_len = strlen(str) + 1;
+
+    // 计算压缩后最大长度
+    uLong compressed_size = compressBound(str_len);
+
+    // 压缩数据
+    Bytef* compressed_data = (Bytef*)malloc(compressed_size);
+    int ret = compress(compressed_data, &compressed_size, (const Bytef*)str, str_len);
+    if (ret != Z_OK) {
+        free(compressed_data);
+        LUA_ERROR("compress failed");
+    }
+    // LuaPushStringBuffer(luastate, compressed_data, compressed_size);
+    lua_pushstring(luastate, (char *)compressed_data);
+    free(compressed_data);
+    return 1;
+}
+
+static int LuaUnzip(lua_State *luastate)
+{
+    if (!lua_isstring(luastate, 1)) {
+        LUA_ERROR("1nd arg not a string");
+    }
+    const char *str = lua_tostring(luastate, 1);
+    if (str == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+    uLong str_len = strlen(str) + 1;
+
+    // 解压（需已知解压后大小）
+    uLong decompressed_size = 4 * str_len; // 原始数据大小
+    Bytef* decompressed_data = (Bytef*)malloc(decompressed_size);
+    int ret = uncompress(decompressed_data, &decompressed_size, (const Bytef*)str, str_len);
+    if (ret != Z_OK) {
+        free(decompressed_data);
+        LUA_ERROR("decompress failed");
+    }
+    LuaPushStringBuffer(luastate, decompressed_data, decompressed_size);
+    free(decompressed_data);
+    return 1;
+}
+
+static int LuaUngzip(lua_State *luastate)
+{
+    if (!lua_istable(luastate, 1)) {
+        LUA_ERROR("1nd arg not a table");
+    }
+    size_t src_len = lua_objlen(luastate, 1); // 获取数组长度, lua_rawlen
+
+    uint8_t *data = (uint8_t *)malloc(src_len);
+    if (data == NULL) {
+        LUA_ERROR("failed to allocate memory");
+    }
+
+    // 遍历 table 提取数据
+    for (size_t i = 1; i <= src_len; i++) {
+        lua_rawgeti(luastate, 1, i);       // 压入 table[i]
+
+        if (lua_isnumber(luastate, -1)) {
+            int num = lua_tonumber(luastate, -1);
+            data[i - 1] = (uint8_t)num;
+        } else {
+            free(data);
+            LUA_ERROR("Invalid data at index: must be integer");
+        }
+        lua_pop(luastate, 1);  // 弹出当前元素
+    }
+
+    Bytef *dst = NULL;
+    uLong dstLen = 0;
+    int ret = MemoryDecompress(WINDOW_BITS|GZIP_ENCODING, data, src_len, &dst, &dstLen);
+    if (ret != Z_OK) {
+        free(data);
+        LUA_ERROR("decompress failed");
+    }
+    LuaPushStringBuffer(luastate, dst, dstLen);
+    free(dst);
+    free(data);
+    return 1;
+}
+
+static int LuaUndeflate(lua_State *luastate)
+{
+    if (!lua_istable(luastate, 1)) {
+        LUA_ERROR("1nd arg not a table");
+    }
+    size_t src_len = lua_objlen(luastate, 1); // 获取数组长度, lua_rawlen
+
+    uint8_t *data = (uint8_t *)malloc(src_len);
+    if (data == NULL) {
+        LUA_ERROR("failed to allocate memory");
+    }
+
+    // 遍历 table 提取数据
+    for (size_t i = 1; i <= src_len; i++) {
+        lua_rawgeti(luastate, 1, i);       // 压入 table[i]
+
+        if (lua_isnumber(luastate, -1)) {
+            int num = lua_tonumber(luastate, -1);
+            data[i - 1] = (uint8_t)num;
+        } else {
+            free(data);
+            LUA_ERROR("Invalid data at index: must be integer");
+        }
+        lua_pop(luastate, 1);  // 弹出当前元素
+    }
+
+    Bytef *dst = NULL;
+    uLong dstLen = 0;
+    int ret = MemoryDecompress(-WINDOW_BITS, data, src_len, &dst, &dstLen);
+    if (ret != Z_OK) {
+        free(data);
+        LUA_ERROR("decompress failed");
+    }
+    LuaPushStringBuffer(luastate, dst, dstLen);
+    free(dst);
+    free(data);
+    return 1;
+}
+
+static int LuaCharset(lua_State *luastate)
+{
+    if (!lua_istable(luastate, 1)) {
+        LUA_ERROR("1nd arg not a table");
+    }
+    size_t src_len = lua_objlen(luastate, 1); // 获取数组长度, lua_rawlen
+
+    if (!lua_isstring(luastate, 2)) {
+        LUA_ERROR("2nd arg not a string");
+    }
+    const char *from = lua_tostring(luastate, 2);
+    if (from == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    if (!lua_isstring(luastate, 3)) {
+        LUA_ERROR("3nd arg not a string");
+    }
+    const char *to = lua_tostring(luastate, 3);
+    if (to == NULL) {
+        LUA_ERROR("value is NULL");
+    }
+
+    char *data = (char *)malloc(src_len);
+    if (data == NULL) {
+        LUA_ERROR("failed to allocate memory");
+    }
+
+    // 遍历 table 提取数据
+    for (size_t i = 1; i <= src_len; i++) {
+        lua_rawgeti(luastate, 1, i);       // 压入 table[i]
+
+        if (lua_isnumber(luastate, -1)) {
+            int num = lua_tonumber(luastate, -1);
+            data[i - 1] = (char)num;
+        } else {
+            free(data);
+            LUA_ERROR("Invalid data at index: must be integer");
+        }
+        lua_pop(luastate, 1);  // 弹出当前元素
+    }
+
+    char *output = NULL;
+    size_t out_len = 0;
+    int ret = CharsetMemoryConvert(from, to, data, src_len, &output, &out_len);
+    if (ret != 0) {
+        free(data);
+        LUA_ERROR("CharsetMemoryConvert failed");
+    }
+    LuaPushStringBuffer(luastate, (const uint8_t *)output, out_len);
+    free(output);
+    free(data);
+    return 1;
+}
+
 void LuaExtensionsMatchSetup(lua_State *lua_state, DetectLuaData *ld,
         DetectEngineThreadCtx *det_ctx, Flow *f, Packet *p, const Signature *s, uint8_t flags)
 {
@@ -579,6 +909,30 @@ int LuaRegisterExtensions(lua_State *lua_state)
 
     lua_pushcfunction(lua_state, LuaGetByteVar);
     lua_setglobal(lua_state, "SCByteVarGet");
+
+    lua_pushcfunction(lua_state, LuaSetDetectCustomData);
+    lua_setglobal(lua_state, "SCDetectCustomDataSet");
+
+    lua_pushcfunction(lua_state, LuaSetRecord);
+    lua_setglobal(lua_state, "SCRecordSet");
+
+    lua_pushcfunction(lua_state, LuaSetUSocket);
+    lua_setglobal(lua_state, "SCUSocketSet");
+
+    lua_pushcfunction(lua_state, LuaZipStr);
+    lua_setglobal(lua_state, "SCStrZip");
+
+    lua_pushcfunction(lua_state, LuaUnzip);
+    lua_setglobal(lua_state, "SCUnzip");
+
+    lua_pushcfunction(lua_state, LuaUngzip);
+    lua_setglobal(lua_state, "SCUngzip");
+
+    lua_pushcfunction(lua_state, LuaUndeflate);
+    lua_setglobal(lua_state, "SCUndeflate");
+
+    lua_pushcfunction(lua_state, LuaCharset);
+    lua_setglobal(lua_state, "SCCharset");
 
     LuaRegisterFunctions(lua_state);
     LuaRegisterHttpFunctions(lua_state);
