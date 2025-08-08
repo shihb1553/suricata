@@ -67,6 +67,8 @@
 
 #include "action-globals.h"
 
+#include "ray-plugin.h"
+
 typedef struct DetectRunScratchpad {
     const AppProto alproto;
     const uint8_t flow_flags; /* flow/state flags: STREAM_* */
@@ -128,6 +130,8 @@ static void DetectRun(ThreadVars *th_v,
 
     /* get our rule group */
     DetectRunGetRuleGroup(de_ctx, p, pflow, &scratch);
+
+    RayPluginCallPointDetectSgh(th_v, p, &scratch);
     /* if we didn't get a sig group head, we
      * have nothing to do.... */
     if (scratch.sgh == NULL) {
@@ -1897,8 +1901,10 @@ TmEcode Detect(ThreadVars *tv, Packet *p, void *data)
     }
 #endif
 
+    RayPluginCallPointDetectEnd(tv, p);
     return TM_ECODE_OK;
 error:
+    RayPluginCallPointDetectEnd(tv, p);
     return TM_ECODE_FAILED;
 }
 
@@ -1933,4 +1939,3 @@ void SigMatchSignatures(
 #ifdef UNITTESTS
 #include "tests/detect.c"
 #endif
-
