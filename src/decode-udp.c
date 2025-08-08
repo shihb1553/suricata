@@ -36,6 +36,7 @@
 #include "decode-udp.h"
 #include "decode-teredo.h"
 #include "decode-vxlan.h"
+#include "decode-gtp.h"
 #include "decode-events.h"
 #include "util-unittest.h"
 #include "util-debug.h"
@@ -106,6 +107,15 @@ int DecodeUDP(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
     if (DecodeVXLANEnabledForPort(p->sp, p->dp) &&
             unlikely(DecodeVXLAN(tv, dtv, p, p->payload, p->payload_len) == TM_ECODE_OK)) {
         /* Here we have a VXLAN packet and don't need to handle app
+         * layer */
+        FlowSetupPacket(p);
+        return TM_ECODE_OK;
+    }
+
+    /* Handle GTP if configured */
+    if (DecodeGtpEnabledForPort(p->sp, p->dp) &&
+            unlikely(DecodeGtp(tv, dtv, p, p->payload, p->payload_len) == TM_ECODE_OK)) {
+        /* Here we have a GTP packet and don't need to handle app
          * layer */
         FlowSetupPacket(p);
         return TM_ECODE_OK;

@@ -86,6 +86,7 @@ noinst_HEADERS = \
 	decode-tcp.h \
 	decode-template.h \
 	decode-teredo.h \
+	decode-gtp.h \
 	decode-udp.h \
 	decode-vlan.h \
 	decode-vntag.h \
@@ -429,6 +430,7 @@ noinst_HEADERS = \
 	output-json-snmp.h \
 	output-json-ssh.h \
 	output-json-stats.h \
+	output-json-gtp.h \
 	output-json-template.h \
 	output-json-tftp.h \
 	output-json-tls.h \
@@ -709,6 +711,7 @@ libsuricata_c_a_SOURCES = \
 	decode-tcp.c \
 	decode-template.c \
 	decode-teredo.c \
+	decode-gtp.c \
 	decode-udp.c \
 	decode-vlan.c \
 	decode-vntag.c \
@@ -1051,6 +1054,7 @@ libsuricata_c_a_SOURCES = \
 	output-json-snmp.c \
 	output-json-ssh.c \
 	output-json-stats.c \
+	output-json-gtp.c \
 	output-json-template.c \
 	output-json-tftp.c \
 	output-json-tls.c \
