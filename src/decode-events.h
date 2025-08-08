@@ -201,6 +201,9 @@ enum {
     /* Geneve events */
     GENEVE_UNKNOWN_PAYLOAD_TYPE,
 
+    /* Gtp events */
+    GTP_UNKNOWN_PAYLOAD_TYPE,
+
     /* ERSPAN events */
     ERSPAN_HEADER_TOO_SMALL,
     ERSPAN_UNSUPPORTED_VERSION,

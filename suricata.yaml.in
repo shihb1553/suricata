@@ -50,6 +50,7 @@ vars:
     GENEVE_PORTS: 6081
     VXLAN_PORTS: 4789
     TEREDO_PORTS: 3544
+    GTP_PORTS: 2152
 
 ##
 ## Step 2: Select outputs to enable
@@ -161,6 +162,7 @@ outputs:
         header: X-Forwarded-For
 
       types:
+        - gtp
         - alert:
             # payload: yes             # enable dumping payload in Base64
             # payload-buffer-size: 4kb # max size of payload buffer to output in eve-log
@@ -774,7 +776,7 @@ dpdk:
       # - auto takes all cores
       # in IPS mode it is required to specify the number of cores and the numbers on both interfaces must match
       threads: auto
-      # interrupt-mode: false # true to switch to interrupt mode 
+      # interrupt-mode: false # true to switch to interrupt mode
       promisc: true # promiscuous mode - capture all packets
       multicast: true # enables also detection on multicast packets
       checksum-checks: true # if Suricata should validate checksums
@@ -1307,8 +1309,8 @@ coredump:
 # This feature is currently only used by the reject* keywords.
 host-mode: auto
 
-# Number of packets preallocated per thread. The default is 1024. A higher number 
-# will make sure each CPU will be more easily kept busy, but may negatively 
+# Number of packets preallocated per thread. The default is 1024. A higher number
+# will make sure each CPU will be more easily kept busy, but may negatively
 # impact caching.
 #max-pending-packets: 1024
 
@@ -1685,6 +1687,12 @@ decoder:
   geneve:
     enabled: true
     ports: $GENEVE_PORTS # syntax: '[6081, 1234]' or '6081'.
+
+  # Gtp decoder is assigned to up to 4 UDP ports. By default only the
+  # IANA assigned port 2152 is enabled.
+  gtp:
+    enabled: true
+    ports: $GTP_PORTS # syntax: '[2152, 1234]' or '2152'.
 
   # maximum number of decoder layers for a packet
   # max-layers: 16
