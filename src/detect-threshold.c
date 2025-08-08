@@ -60,7 +60,7 @@
 #include "util-cpu.h"
 #endif
 
-#define PARSE_REGEX "^\\s*(track|type|count|seconds)\\s+(limit|both|threshold|by_dst|by_src|by_both|by_rule|\\d+)\\s*,\\s*(track|type|count|seconds)\\s+(limit|both|threshold|by_dst|by_src|by_both|by_rule|\\d+)\\s*,\\s*(track|type|count|seconds)\\s+(limit|both|threshold|by_dst|by_src|by_both|by_rule|\\d+)\\s*,\\s*(track|type|count|seconds)\\s+(limit|both|threshold|by_dst|by_src|by_both|by_rule|\\d+)\\s*"
+#define PARSE_REGEX "^\\s*(track|type|count|seconds)\\s+(limit|both|threshold|freq|by_dst|by_src|by_both|by_rule|\\d+)\\s*,\\s*(track|type|count|seconds)\\s+(limit|both|threshold|freq|by_dst|by_src|by_both|by_rule|\\d+)\\s*,\\s*(track|type|count|seconds)\\s+(limit|both|threshold|freq|by_dst|by_src|by_both|by_rule|\\d+)\\s*,\\s*(track|type|count|seconds)\\s+(limit|both|threshold|freq|by_dst|by_src|by_both|by_rule|\\d+)\\s*"
 
 static DetectParseRegex parse_regex;
 
@@ -177,6 +177,8 @@ static DetectThresholdData *DetectThresholdParse(const char *rawstr)
             de->type = TYPE_BOTH;
         if (strncasecmp(args[i],"threshold",strlen("threshold")) == 0)
             de->type = TYPE_THRESHOLD;
+        if (strncasecmp(args[i],"freq",strlen("freq")) == 0)
+            de->type = TYPE_FREQ;
         if (strncasecmp(args[i],"by_dst",strlen("by_dst")) == 0)
             de->track = TRACK_DST;
         if (strncasecmp(args[i],"by_src",strlen("by_src")) == 0)
@@ -474,6 +476,25 @@ static int ThresholdTestParse07(void)
     FAIL_IF_NOT(de->track == TRACK_RULE);
     FAIL_IF_NOT(de->count == 10);
     FAIL_IF_NOT(de->seconds == 60);
+    DetectThresholdFree(NULL, de);
+    PASS;
+}
+
+/**
+ * \test ThresholdTestParse08 is a test for freq by_rule
+ *
+ *  \retval 1 on success
+ *  \retval 0 on failure
+ */
+static int ThresholdTestParse08(void)
+{
+    DetectThresholdData *de = NULL;
+    de = DetectThresholdParse("type freq, track by_rule, count 80, seconds 0");
+    FAIL_IF_NULL(de);
+    FAIL_IF_NOT(de->type == TYPE_FREQ);
+    FAIL_IF_NOT(de->track == TRACK_RULE);
+    FAIL_IF_NOT(de->count == 80);
+    FAIL_IF_NOT(de->seconds == 0);
     DetectThresholdFree(NULL, de);
     PASS;
 }
@@ -1705,6 +1726,7 @@ static void ThresholdRegisterTests(void)
     UtRegisterTest("ThresholdTestParse05", ThresholdTestParse05);
     UtRegisterTest("ThresholdTestParse06", ThresholdTestParse06);
     UtRegisterTest("ThresholdTestParse07", ThresholdTestParse07);
+    UtRegisterTest("ThresholdTestParse08", ThresholdTestParse08);
     UtRegisterTest("DetectThresholdTestSig1", DetectThresholdTestSig1);
     UtRegisterTest("DetectThresholdTestSig2", DetectThresholdTestSig2);
     UtRegisterTest("DetectThresholdTestSig3", DetectThresholdTestSig3);

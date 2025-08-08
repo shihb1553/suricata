@@ -26,6 +26,7 @@
 
 #include "detect-engine-tag.h"
 #include "detect-engine-threshold.h"
+#include "detect-engine-record.h"
 
 #include "host-bit.h"
 #include "host-timeout.h"
@@ -63,6 +64,7 @@ static int HostHostTimedOut(Host *h, SCTime_t ts)
 
     busy |= (h->iprep && SRepHostTimedOut(h) == 0);
     busy |= (TagHostHasTag(h) && TagTimeoutCheck(h, ts) == 0);
+    busy |= (RecordHostHasRecord(h) && RecordHostTimeoutCheck(h, ts) == 0);
     busy |= (ThresholdHostHasThreshold(h) && ThresholdHostTimeoutCheck(h, ts) == 0);
     busy |= (HostHasHostBits(h) && HostBitsTimedoutCheck(h, ts) == 0);
     SCLogDebug("host %p %s", h, busy ? "still active" : "timed out");
@@ -160,4 +162,3 @@ uint32_t HostTimeoutHash(SCTime_t ts)
 
     return cnt;
 }
-
