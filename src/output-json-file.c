@@ -85,6 +85,8 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
         OutputJsonCtx *eve_ctx)
 {
     enum OutputJsonLogDirection fdir = LOG_DIR_FLOW;
+    AppProto alproto = p->flow->alproto;
+    HtpState *htp_state;
 
     switch(dir) {
         case STREAM_TOCLIENT:
@@ -123,7 +125,7 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
         return NULL;
 
     JsonBuilderMark mark = { 0, 0, 0 };
-    switch (p->flow->alproto) {
+    switch (alproto) {
         case ALPROTO_HTTP1:
             jb_open_object(js, "http");
             EveHttpAddMetadata(p->flow, tx_id, js);
@@ -183,7 +185,16 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
             break;
     }
 
-    jb_set_string(js, "app_proto", AppProtoToString(p->flow->alproto));
+    if (alproto == ALPROTO_HTTP) {
+        htp_state = (HtpState *)FlowGetAppState(p->flow);
+        if (htp_state->c_type == TYPE_MMSE) {
+            jb_set_string(js, "app_proto", "mms");
+        } else if (htp_state->c_type == TYPE_WAP2) {
+            jb_set_string(js, "app_proto", "wap");
+        } else {
+            jb_set_string(js, "app_proto", AppProtoToString(alproto));
+        }
+    }
 
     jb_open_object(js, "fileinfo");
     if (stored) {

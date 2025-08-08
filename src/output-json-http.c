@@ -487,6 +487,22 @@ static int JsonHttpLogger(ThreadVars *tv, void *thread_data, const Packet *p, Fl
     SCReturnInt(TM_ECODE_OK);
 }
 
+static void EveHttpMMSELogJSONExtended(JsonBuilder *js, htp_tx_t *tx)
+{
+    uint64_t i = 0;
+    HtpTxUserData *htud = (HtpTxUserData *) htp_tx_get_user_data(tx);
+    jb_open_object(js, "mmse");
+    if (htud->mmse_info.msg_from) {
+         jb_set_string(js, "from", htud->mmse_info.msg_from);
+    }
+    if (htud->mmse_info.msg_to) {
+        for (i = 0; i < htud->mmse_info.msg_to_cnt; i++) {
+            jb_set_string(js, "to", htud->mmse_info.msg_to[i]);
+        }
+    }
+}
+
+
 bool EveHttpAddMetadata(const Flow *f, uint64_t tx_id, JsonBuilder *js)
 {
     HtpState *htp_state = (HtpState *)FlowGetAppState(f);
@@ -495,6 +511,9 @@ bool EveHttpAddMetadata(const Flow *f, uint64_t tx_id, JsonBuilder *js)
 
         if (tx) {
             EveHttpLogJSONBasic(js, tx);
+            if (htp_state->c_type == TYPE_MMSE) {
+                EveHttpMMSELogJSONExtended(js, tx);
+            }
             EveHttpLogJSONExtended(js, tx);
             return true;
         }
