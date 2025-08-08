@@ -59,6 +59,7 @@
 #include "detect-engine-alert.h"
 #include "detect-engine-port.h"
 #include "detect-engine-tag.h"
+#include "detect-engine-record.h"
 #include "detect-engine-threshold.h"
 #include "detect-fast-pattern.h"
 
@@ -117,6 +118,8 @@
 
 #include "tmqh-packetpool.h"
 #include "tm-queuehandlers.h"
+
+#include "usocket.h"
 
 #include "util-byte.h"
 #include "util-conf.h"
@@ -385,6 +388,7 @@ static void GlobalsDestroy(SCInstance *suri)
     DatasetsSave();
     DatasetsDestroy();
     TagDestroyCtx();
+    RecordDestroyCtx();
 
     RayPluginDestroy();
 
@@ -907,6 +911,7 @@ void RegisterAllModules(void)
     TmModuleFlowManagerRegister();
     TmModuleFlowRecyclerRegister();
     TmModuleBypassedFlowManagerRegister();
+    TmModuleUSocketRegister();
     /* nfq */
     TmModuleReceiveNFQRegister();
     TmModuleVerdictNFQRegister();
@@ -2775,6 +2780,7 @@ int PostConfLoadedSetup(SCInstance *suri)
     TmqhSetup();
 
     TagInitCtx();
+    RecordInitCtx();
     PacketAlertTagInit();
     ThresholdInit();
     HostBitInitCtx();

@@ -108,6 +108,7 @@
 #include "detect-classtype.h"
 #include "detect-reference.h"
 #include "detect-tag.h"
+#include "detect-record.h"
 #include "detect-threshold.h"
 #include "detect-metadata.h"
 #include "detect-msg.h"
@@ -131,6 +132,7 @@
 #include "detect-dataset.h"
 #include "detect-datarep.h"
 #include "detect-dsize.h"
+#include "detect-network.h"
 #include "detect-flowvar.h"
 #include "detect-flowint.h"
 #include "detect-pktvar.h"
@@ -237,6 +239,7 @@
 #include "detect-ftpdata.h"
 #include "detect-engine-content-inspection.h"
 
+#include "detect-transform-codec.h"
 #include "detect-transform-compress-whitespace.h"
 #include "detect-transform-strip-whitespace.h"
 #include "detect-transform-strip-pseudo-headers.h"
@@ -282,6 +285,7 @@
 #include "detect-ike-nonce-payload-length.h"
 #include "detect-ike-nonce-payload.h"
 #include "detect-ike-key-exchange-payload.h"
+#include "detect-time.h"
 
 #include "action-globals.h"
 #include "tm-threads.h"
@@ -471,6 +475,7 @@ void SigTableSetup(void)
     DetectClasstypeRegister();
     DetectReferenceRegister();
     DetectTagRegister();
+    DetectRecordRegister();
     DetectThresholdRegister();
     DetectMetadataRegister();
     DetectMsgRegister();
@@ -567,6 +572,7 @@ void SigTableSetup(void)
     DetectFlowRegister();
     DetectFlowAgeRegister();
     DetectRequiresRegister();
+    DetectTimeRegister();
     DetectWindowRegister();
     DetectRpcRegister();
     DetectFtpbounceRegister();
@@ -576,6 +582,7 @@ void SigTableSetup(void)
     DetectDsizeRegister();
     DetectDatasetRegister();
     DetectDatarepRegister();
+    DetectNetworkRegister();
     DetectFlowvarRegister();
     DetectFlowintRegister();
     DetectPktvarRegister();
@@ -694,6 +701,7 @@ void SigTableSetup(void)
     DetectBypassRegister();
     DetectConfigRegister();
 
+    DetectTransformCodecRegister();
     DetectTransformCompressWhitespaceRegister();
     DetectTransformStripWhitespaceRegister();
     DetectTransformStripPseudoHeadersRegister();

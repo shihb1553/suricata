@@ -38,6 +38,7 @@
 #include "detect-engine-dcepayload.h"
 #include "detect-engine-state.h"
 #include "detect-engine-tag.h"
+#include "detect-engine-record.h"
 #include "detect-engine-enip.h"
 #include "detect-fast-pattern.h"
 #include "flow.h"
@@ -92,6 +93,7 @@
 #include "util-proto-name.h"
 #include "util-macset.h"
 #include "util-memrchr.h"
+#include "util-charset.h"
 
 #include "util-mpm-ac.h"
 #include "util-mpm-hs.h"
@@ -218,6 +220,7 @@ static void RegisterUnittests(void)
     SourceWinDivertRegisterTests();
 #endif
     SCProtoNameRegisterTests();
+    UtilCharsetTests();
     UtilCIDRTests();
     OutputJsonStatsRegisterTests();
 }
@@ -258,6 +261,8 @@ void RunUnittests(int list_unittests, const char *regex_arg)
     TmqhSetup();
 
     TagInitCtx();
+
+    RecordInitCtx();
 
     UtInitialize();
 
