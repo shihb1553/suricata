@@ -119,13 +119,7 @@ static int PacketStorageTest01(void)
     if (StorageFinalize() < 0)
         goto error;
 
-    PacketInitConfig(1);
-
-    Address a;
-    memset(&a, 0x00, sizeof(a));
-    a.addr_data32[0] = 0x01020304;
-    a.family = AF_INET;
-    Packet *h = PacketGetPacketFromHash(&a);
+    Packet *h = PacketGetFromAlloc();
     if (h == NULL) {
         printf("failed to get packet: ");
         goto error;
@@ -170,13 +164,11 @@ static int PacketStorageTest01(void)
         goto error;
     }
 
-    PacketRelease(h);
+    SCFree(h);
 
-    PacketShutdown();
     StorageCleanup();
     return 1;
 error:
-    PacketShutdown();
     StorageCleanup();
     return 0;
 }
@@ -192,13 +184,7 @@ static int PacketStorageTest02(void)
     if (StorageFinalize() < 0)
         goto error;
 
-    PacketInitConfig(1);
-
-    Address a;
-    memset(&a, 0x00, sizeof(a));
-    a.addr_data32[0] = 0x01020304;
-    a.family = AF_INET;
-    Packet *h = PacketGetPacketFromHash(&a);
+    Packet *h = PacketGetFromAlloc();
     if (h == NULL) {
         printf("failed to get packet: ");
         goto error;
@@ -220,13 +206,11 @@ static int PacketStorageTest02(void)
         goto error;
     }
 
-    PacketRelease(h);
+    SCFree(h);
 
-    PacketShutdown();
     StorageCleanup();
     return 1;
 error:
-    PacketShutdown();
     StorageCleanup();
     return 0;
 }
@@ -248,13 +232,7 @@ static int PacketStorageTest03(void)
     if (StorageFinalize() < 0)
         goto error;
 
-    PacketInitConfig(1);
-
-    Address a;
-    memset(&a, 0x00, sizeof(a));
-    a.addr_data32[0] = 0x01020304;
-    a.family = AF_INET;
-    Packet *h = PacketGetPacketFromHash(&a);
+    Packet *h = PacketGetFromAlloc();
     if (h == NULL) {
         printf("failed to get packet: ");
         goto error;
@@ -295,13 +273,11 @@ static int PacketStorageTest03(void)
         goto error;
     }
 
-    PacketRelease(h);
+    SCFree(h);
 
-    PacketShutdown();
     StorageCleanup();
     return 1;
 error:
-    PacketShutdown();
     StorageCleanup();
     return 0;
 }

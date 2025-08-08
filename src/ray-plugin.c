@@ -417,7 +417,7 @@ int SCRayPluginRegister(const SCRayPlugin *plugin, int *plugin_id)
         }
     }
 
-    if (plugin->Init == NULL || plugin->Func == NULL || plugin->Fini == NULL) {
+    if (plugin->Init == NULL || plugin->Fini == NULL) {
         SCLogError("Invalid function pointer");
         return -1;
     }
