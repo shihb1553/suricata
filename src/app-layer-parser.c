@@ -63,6 +63,7 @@
 #include "app-layer-rdp.h"
 #include "app-layer-http2.h"
 #include "app-layer-ccsds.h"
+#include "app-layer-bgp.h"
 
 struct AppLayerParserThreadCtx_ {
     void *alproto_local_storage[FLOW_PROTO_MAX][ALPROTO_MAX];
@@ -1797,6 +1798,7 @@ void AppLayerParserRegisterProtocolParsers(void)
     rs_telnet_register_parser();
 
     RegisterCcsdsParsers();
+    RegisterBgpParsers();
 
     /** IMAP */
     AppLayerProtoDetectRegisterProtocol(ALPROTO_IMAP, "imap");

@@ -14,6 +14,7 @@ noinst_HEADERS = \
 	alert-debuglog.h \
 	alert-fastlog.h \
 	alert-syslog.h \
+	app-layer-bgp.h \
 	app-layer-ccsds.h \
 	app-layer-detect-proto.h \
 	app-layer-dnp3.h \
@@ -658,6 +659,7 @@ libsuricata_c_a_SOURCES = \
 	alert-fastlog.c \
 	alert-syslog.c \
 	app-layer.c \
+	app-layer-bgp.c \
 	app-layer-ccsds.c \
 	app-layer-detect-proto.c \
 	app-layer-dnp3.c \

@@ -71,6 +71,7 @@ const AppProtoStringTuple AppProtoStrings[ALPROTO_MAX] = {
     { ALPROTO_WAP2, "wap2" },
 
     { ALPROTO_CCSDS, "ccsds" },
+    { ALPROTO_BGP, "bgp" },
 
     { ALPROTO_FAILED, "failed" },
 #ifdef UNITTESTS
