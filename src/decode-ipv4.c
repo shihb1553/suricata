@@ -650,6 +650,10 @@ int DecodeIPV4(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
         case IPPROTO_ICMPV6:
             ENGINE_SET_INVALID_EVENT(p, IPV4_WITH_ICMPV6);
             break;
+
+        case IPPROTO_OSPF:
+            DecodeOSPF(tv, dtv, p, pkt + IPV4_GET_HLEN(p), IPV4_GET_IPLEN(p) - IPV4_GET_HLEN(p));
+            break;
     }
 
     return TM_ECODE_OK;

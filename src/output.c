@@ -88,6 +88,7 @@
 #include "output-json-dcerpc.h"
 #include "output-json-frame.h"
 #include "output-json-bittorrent-dht.h"
+#include "output-json-ccsds.h"
 #include "output-filestore.h"
 
 #include "ray-plugin.h"
@@ -1132,4 +1133,6 @@ void OutputRegisterLoggers(void)
     JsonFrameLogRegister();
     /* BitTorrent DHT JSON logger */
     JsonBitTorrentDHTLogRegister();
+
+    JsonCcsdsLogRegister();
 }

@@ -580,6 +580,7 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     dtv->counter_erspan = StatsRegisterMaxCounter("decoder.erspan", tv);
     dtv->counter_nsh = StatsRegisterMaxCounter("decoder.nsh", tv);
     dtv->counter_flow_memcap = StatsRegisterCounter("flow.memcap", tv);
+    dtv->counter_ospf = StatsRegisterCounter("decoder.ospf", tv);
 
     dtv->counter_tcp_active_sessions = StatsRegisterCounter("tcp.active_sessions", tv);
     dtv->counter_flow_total = StatsRegisterCounter("flow.total", tv);
