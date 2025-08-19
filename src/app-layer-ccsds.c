@@ -25,7 +25,6 @@
 #include "util-unittest-helper.h"
 #include "pkt-var.h"
 #include "util-profiling.h"
-#include "util-enum.h"
 
 
 SCEnumCharMap ccsds_decoder_event_table[] = {

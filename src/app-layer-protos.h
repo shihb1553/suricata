@@ -70,6 +70,7 @@ enum AppProtoEnum {
     ALPROTO_MMSE,
 
     ALPROTO_CCSDS,
+    ALPROTO_BGP,
 
     /* used by the probing parser when alproto detection fails
      * permanently for that particular stream */
