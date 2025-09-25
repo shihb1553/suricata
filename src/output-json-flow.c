@@ -51,6 +51,7 @@
 #include "stream-tcp-private.h"
 #include "flow-storage.h"
 #include "util-exception-policy.h"
+#include "rust.h"
 
 typedef struct LogFlowCtx_ {
     bool log_exception_policies;
@@ -444,6 +445,16 @@ static void EveFlowLogJSON(LogFlowLogThread *ft, JsonBuilder *jb, Flow *f)
     jb_close(jb);
 
     EveAddCommonOptions(&ft->output_ctx->ctx->cfg, NULL, f, jb, LOG_DIR_FLOW);
+
+    if (f->alproto == ALPROTO_TELNET) {
+        jb_open_object(jb, "telnet");
+        void *state = f->alstate;
+        if (state) {
+            jb_set_string(jb, "username", rs_telnet_state_get_username(state));
+            jb_set_string(jb, "password", rs_telnet_state_get_password(state));
+        }
+        jb_close(jb);
+    }
 
     /* TCP */
     if (f->proto == IPPROTO_TCP) {
