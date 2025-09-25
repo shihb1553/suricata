@@ -1,4 +1,4 @@
-/* Copyright (C) 2018 Open Information Security Foundation
+/* Copyright (C) 2025 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -15,8 +15,15 @@
  * 02110-1301, USA.
  */
 
-//! Telnet application layer and parser module.
+/**
+ * \file
+ *
+ * \author FirstName LastName <name@domain>
+ */
 
-pub mod logger;
-mod parser;
-pub mod telnet;
+#ifndef __OUTPUT_JSON_TELNET_H__
+#define __OUTPUT_JSON_TELNET_H__
+
+void JsonTelnetLogRegister(void);
+
+#endif /* __OUTPUT_JSON_TELNET_H__ */

@@ -74,18 +74,18 @@ def common_copy_templates(proto, pairs, replacements=()):
 
         if dst.endswith(".rs"):
             rustfmt(dst)
-                
+
 def copy_app_layer_templates(proto):
     lower = proto.lower()
     upper = proto.upper()
 
     pairs = (
         ("rust/src/applayertemplate/mod.rs",
-         "rust/src/applayer%s/mod.rs" % (lower)),
+         "rust/src/%s/mod.rs" % (lower)),
         ("rust/src/applayertemplate/template.rs",
-         "rust/src/applayer%s/%s.rs" % (lower, lower)),
+         "rust/src/%s/%s.rs" % (lower, lower)),
         ("rust/src/applayertemplate/parser.rs",
-         "rust/src/applayer%s/parser.rs" % (lower)),
+         "rust/src/%s/parser.rs" % (lower)),
     )
 
     common_copy_templates(proto, pairs)
@@ -103,7 +103,7 @@ def patch_rust_lib_rs(protoname):
 
 def patch_rust_applayer_mod_rs(protoname):
     lower = protoname.lower()
-    filename = "rust/src/applayer%s/mod.rs" % (lower)
+    filename = "rust/src/%s/mod.rs" % (lower)
     print("Patching %s." % (filename))
     output = io.StringIO()
     done = False
@@ -210,14 +210,14 @@ def logger_patch_output_c(proto):
 
 def logger_copy_templates(proto):
     lower = proto.lower()
-    
+
     pairs = (
         ("src/output-json-template.h",
          "src/output-json-%s.h" % (lower)),
         ("src/output-json-template.c",
          "src/output-json-%s.c" % (lower)),
         ("rust/src/applayertemplate/logger.rs",
-         "rust/src/applayer%s/logger.rs" % (lower)),
+         "rust/src/%s/logger.rs" % (lower)),
     )
 
     common_copy_templates(proto, pairs)
@@ -411,8 +411,8 @@ def main():
 An application detector and parser for the protocol %(proto)s have
 now been setup in the files:
 
-    rust/src/applayer%(proto_lower)s/mod.rs
-    rust/src/applayer%(proto_lower)s/parser.rs""" % {
+    rust/src/%(proto_lower)s/mod.rs
+    rust/src/%(proto_lower)s/parser.rs""" % {
             "proto": proto,
             "proto_lower": proto.lower(),
         })
@@ -422,7 +422,7 @@ now been setup in the files:
 A JSON application layer transaction logger for the protocol
 %(proto)s has now been set in the file:
 
-    rust/src/applayer%(proto_lower)s/logger.rs""" % {
+    rust/src/%(proto_lower)s/logger.rs""" % {
             "proto": proto,
             "proto_lower": proto.lower(),
         })
