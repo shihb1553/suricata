@@ -79,6 +79,7 @@
 #include "output-json-mqtt.h"
 #include "output-json-pgsql.h"
 #include "output-json-gtp.h"
+#include "output-json-telnet.h"
 #include "output-json-template.h"
 #include "output-json-rdp.h"
 #include "output-json-http2.h"
@@ -1122,6 +1123,8 @@ void OutputRegisterLoggers(void)
     JsonPgsqlLogRegister();
     /* Gtp JSON logger. */
     JsonGtpLogRegister();
+    /* Telnet JSON logger. */
+    JsonTelnetLogRegister();
     /* Template JSON logger. */
     JsonTemplateLogRegister();
     /* RDP JSON logger. */

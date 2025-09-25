@@ -761,24 +761,24 @@ do {                                        \
 
 #define decode_uintvar(cur, value)          \
 do {                                        \
-    uint8_t val = 0;                        \
-    const uint8_t *begin = cur;             \
+    uint8_t cur_val = 0;                    \
+    const uint8_t *start = cur;             \
                                             \
-    val = *cur;                             \
+    cur_val = *cur;                         \
     POS_MOVE(cur, 1);                       \
                                             \
-    while(val & 0x80) {                     \
-        value |= (val & 0x7F);              \
+    while(cur_val & 0x80) {                 \
+        value |= (cur_val & 0x7F);          \
         value <<= 7;   /* 7 bits */         \
-        val = *cur;                         \
+        cur_val = *cur;                     \
         POS_MOVE(cur, 1);                   \
     }                                       \
                                             \
-    value |= val; /* last 7 bits */         \
+    value |= cur_val; /* last 7 bits */     \
                                             \
     SCLogInfo("value is %lu,"               \
             "bytes_count is %d",            \
-            value, (int)(cur-begin));       \
+            value, (int)(cur-start));       \
 } while(0)
 
 #define decode_int(cur, val)                                       \
@@ -842,21 +842,21 @@ do {                                                               \
 
 #define decode_encoded_string(cur)                                 \
 do {                                                               \
-    uint64_t len = 0;                                              \
+    uint64_t cur_len = 0;                                          \
                                                                    \
     if (*cur < 0x20) {                                             \
         if (*cur < 0x1F) {                                         \
-            len = *cur;                                            \
+            cur_len = *cur;                                        \
             /* There is 1 byte value */                            \
             POS_MOVE(cur, 1);                                      \
         } else { /*31; It is uintvar */                            \
             POS_MOVE(cur, 1);                                      \
-            decode_uintvar(cur, len);                              \
+            decode_uintvar(cur, cur_len);                          \
         }                                                          \
                                                                    \
         SCLogInfo("string is %s", cur);                            \
                                                                    \
-        POS_MOVE(cur, len);                                        \
+        POS_MOVE(cur, cur_len);                                    \
                                                                    \
     } else { /* text string */                                     \
         decode_text_string(cur);                                   \
