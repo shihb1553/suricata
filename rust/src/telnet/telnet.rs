@@ -17,8 +17,10 @@
 
 use super::parser;
 use crate::applayer::{self, *};
+use crate::common::rust_string_to_c;
 use crate::core::{AppProto, Flow, ALPROTO_UNKNOWN, IPPROTO_TCP};
 use crate::frames::*;
+use libc::c_char;
 use nom7::IResult;
 use std;
 use std::ffi::CString;
@@ -47,6 +49,7 @@ impl Transaction for TelnetTransaction {
     }
 }
 
+#[derive(Clone)]
 pub enum TelnetProtocolState {
     Idle,
     LoginSent,
@@ -72,6 +75,8 @@ pub struct TelnetState {
     /// either control or data frame
     response_specific_frame: Option<Frame>,
     state: TelnetProtocolState,
+    username: String,
+    password: String,
 }
 
 impl State<TelnetTransaction> for TelnetState {
@@ -103,6 +108,8 @@ impl TelnetState {
             response_frame: None,
             response_specific_frame: None,
             state: TelnetProtocolState::Idle,
+            username: String::new(),
+            password: String::new(),
         }
     }
 
@@ -212,9 +219,19 @@ impl TelnetState {
                         match self.state {
                             TelnetProtocolState::LoginSent => {
                                 self.state = TelnetProtocolState::LoginRecv;
+                                let username = std::str::from_utf8(d);
+                                if let Ok(username) = username {
+                                    self.username = username.to_string();
+                                    SCLogDebug!("username: {}", username);
+                                }
                             }
                             TelnetProtocolState::PasswdSent => {
                                 self.state = TelnetProtocolState::PasswdRecv;
+                                let password = std::str::from_utf8(d);
+                                if let Ok(password) = password {
+                                    self.password = password.to_string();
+                                    SCLogDebug!("password: {}", password);
+                                }
                             }
                             TelnetProtocolState::AuthOk => {
                                 let _message = std::str::from_utf8(d);
@@ -553,4 +570,22 @@ pub unsafe extern "C" fn rs_telnet_register_parser() {
     } else {
         SCLogDebug!("Protocol detector and parser disabled for TELNET.");
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rs_telnet_state_get_username(state: *mut std::os::raw::c_void) -> *mut c_char {
+    let state = cast_pointer!(state, TelnetState);
+    rust_string_to_c(state.username.clone())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rs_telnet_state_get_password(state: *mut std::os::raw::c_void) -> *mut c_char {
+    let state = cast_pointer!(state, TelnetState);
+    rust_string_to_c(state.password.clone())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rs_telnet_state_get_protostate(state: *mut std::os::raw::c_void) -> u32 {
+    let state = cast_pointer!(state, TelnetState);
+    return state.state.clone() as u32;
 }
