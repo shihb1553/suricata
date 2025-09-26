@@ -100,6 +100,7 @@ enum PktSrcEnum {
 #include "decode-esp.h"
 #include "decode-vlan.h"
 #include "decode-mpls.h"
+#include "decode-ospf.h"
 
 
 /* forward declarations */
@@ -578,6 +579,8 @@ typedef struct Packet_
 
     GREHdr *greh;
 
+    OSPFHdrBase *ospf;
+
     /* ptr to the payload of the packet
      * with it's length. */
     uint8_t *payload;
@@ -723,6 +726,7 @@ typedef struct DecodeThreadVars_
     uint16_t counter_ipv6inipv6;
     uint16_t counter_erspan;
     uint16_t counter_nsh;
+    uint16_t counter_ospf;
 
     /** frag stats - defrag runs in the context of the decoder. */
     uint16_t counter_defrag_ipv4_fragments;
@@ -878,6 +882,7 @@ int DecodeCHDLC(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uin
 int DecodeGtp(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeTEMPLATE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeNSH(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+int DecodeOSPF(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 
 #ifdef UNITTESTS
 void DecodeIPV6FragHeader(Packet *p, const uint8_t *pkt,
