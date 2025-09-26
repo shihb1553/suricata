@@ -117,6 +117,7 @@ typedef struct tagStBgpUpdateMsg {
     unsigned short usWithdrawnRoutesLen;
     unsigned short usPathAttrLen;
 } BgpUpdateMsg;
+
 typedef struct tagStBgpPathAddrItem {
     unsigned char ucFlags;
     unsigned char ucType;
@@ -149,8 +150,46 @@ enum BgpMsgType {
 #define BGP_MIN_UPDATE_MSG_SIZE       23
 #define BGP_MIN_NOTIFICATION_MSG_SIZE 21
 #define BGP_MIN_KEEPALVE_MSG_SIZE     BGP_HEADER_SIZE
-#define BGP_TCP_PORT                  179
+#define BGP_TCP_PORT                  "179"
 #define BGP_ROUTE_DISTINGUISHER_SIZE  8
+
+typedef struct tagStBgpMsgPrefix {
+    unsigned char ucLen;
+    unsigned char ucPrefix[4];
+} BgpMsgPrefix;
+
+typedef struct tagStBgpMsgUpdateAs {
+    int iAsNum;
+    int *piASList;
+} BgpMsgUpdateAs;
+
+typedef struct tagStBgpMsgUpdateInfo {
+    int iPrefixMaxNum;
+    int iPrefixCurNum;
+    BgpMsgPrefix *pPrefixList;
+    BgpMsgPrefix stNLRI;
+    char *pcOriginType;
+    unsigned char ucNextHopV4[4];
+    BgpMsgUpdateAs stAsList;
+    unsigned int uiAggregatorAs;
+    unsigned int uiAggregatorOrigin;
+    int iAsPathType;
+    BgpMsgUpdateAs stAsPathInfo;
+} BgpMsgUpdateInfo;
+typedef struct tagStBgpMsgInfoItem {
+    int iMsgType;
+    BgpMsgUpdateInfo *pstUpdateMsg;
+    BgpOpenMsg *pstOpenMsg;
+    BgpNotifyMsg *pstNotifyMsg;
+} BgpMsgInfoItem;
+
+#define BGP_MAX_MSG_NUM_IN_A_PACKET 5
+
+typedef struct tagStBgpMsgInfo {
+    int iMsgMaxNum;
+    int iMsgCurNum;
+    BgpMsgInfoItem *pMsgInfoItem;
+} BgpMsgInfo;
 
 typedef struct BgpTransaction {
     struct BgpState_ *Bgp;
@@ -158,14 +197,9 @@ typedef struct BgpTransaction {
     uint64_t tx_num; /**< internal: id */
     uint16_t tx_id;  /**< transaction id */
 
-    uint8_t *request_buffer;
-    uint32_t request_buffer_len;
-
-    uint8_t *response_buffer;
-    uint32_t response_buffer_len;
-    int iMsgType;
-    BgpOpenMsg stOpenMsg;
-    BgpNotifyMsg stNotifyMsg;
+    uint8_t *payload_buffer;
+    uint32_t payload_buffer_len;
+    BgpMsgInfo stBgpMsg;
     DetectEngineState *de_state;
     TAILQ_ENTRY(BgpTransaction) next;
     AppLayerTxData tx_data;

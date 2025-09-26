@@ -252,17 +252,47 @@ static void BgpTransactionFree(BgpTransaction *tx, BgpState *state)
 
         state->tx_with_detect_state_cnt--;
     }
-    if (tx->request_buffer_len > 0) {
-        SCFree(tx->request_buffer);
-        tx->request_buffer = NULL;
-        tx->request_buffer_len = 0;
-    }
-    if (tx->response_buffer_len > 0) {
-        SCFree(tx->response_buffer);
-        tx->response_buffer = NULL;
-        tx->response_buffer_len = 0;
+    if (tx->payload_buffer_len > 0) {
+        SCFree(tx->payload_buffer);
+        tx->payload_buffer = NULL;
+        tx->payload_buffer_len = 0;
     }
 
+    if (tx->stBgpMsg.iMsgCurNum >= 0 && tx->stBgpMsg.iMsgMaxNum > 0 &&
+            tx->stBgpMsg.pMsgInfoItem != NULL) {
+        int i = 0;
+
+        for (i = 0; i < tx->stBgpMsg.iMsgCurNum; i++) {
+            if (tx->stBgpMsg.pMsgInfoItem[i].pstOpenMsg != NULL) {
+                free(tx->stBgpMsg.pMsgInfoItem[i].pstOpenMsg);
+                tx->stBgpMsg.pMsgInfoItem[i].pstOpenMsg = NULL;
+            }
+            if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg != NULL) {
+                if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->iPrefixCurNum > 0 &&
+                        tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->pPrefixList != NULL) {
+                    free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->pPrefixList);
+                    tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->pPrefixList = NULL;
+                }
+                if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.iAsNum > 0 &&
+                        tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.piASList != NULL) {
+                    free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.piASList);
+                    tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.piASList = NULL;
+                }
+                if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsPathInfo.iAsNum > 0 &&
+                        tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsPathInfo.piASList != NULL) {
+                    free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsPathInfo.piASList);
+                    tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsPathInfo.piASList = NULL;
+                }
+
+                free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg);
+                tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg = NULL;
+            }
+            if (tx->stBgpMsg.pMsgInfoItem[i].pstNotifyMsg != NULL) {
+                free(tx->stBgpMsg.pMsgInfoItem[i].pstNotifyMsg);
+                tx->stBgpMsg.pMsgInfoItem[i].pstNotifyMsg = NULL;
+            }
+        }
+    }
     if (state->iter == tx)
         state->iter = NULL;
 
@@ -321,6 +351,7 @@ static BgpTransaction *BgpTransactionAlloc(BgpState *state)
 /**
  *  \brief bgp transaction cleanup callback
  */
+
 static void BgpStateTransactionFree(void *state, uint64_t tx_id)
 {
     SCEnter();
@@ -328,7 +359,6 @@ static void BgpStateTransactionFree(void *state, uint64_t tx_id)
     BgpState *bgp_state = state;
     BgpTransaction *tx = NULL;
     TAILQ_FOREACH (tx, &bgp_state->tx_list, next) {
-
         if ((tx_id + 1) < tx->tx_num)
             break;
         else if ((tx_id + 1) > tx->tx_num)
@@ -337,6 +367,47 @@ static void BgpStateTransactionFree(void *state, uint64_t tx_id)
         if (tx == bgp_state->curr)
             bgp_state->curr = NULL;
 
+        if (tx->payload_buffer != NULL) {
+            free(tx->payload_buffer);
+            tx->payload_buffer = NULL;
+            tx->payload_buffer_len = 0;
+        }
+        if (tx->stBgpMsg.iMsgCurNum > 0 && tx->stBgpMsg.pMsgInfoItem != NULL) {
+            int i = 0;
+
+            for (i = 0; i < tx->stBgpMsg.iMsgCurNum; i++) {
+                switch (tx->stBgpMsg.pMsgInfoItem[i].iMsgType) {
+                    case BGP_MSG_TYPE_OPEN:
+                        if (tx->stBgpMsg.pMsgInfoItem[i].pstOpenMsg != NULL) {
+                            free(tx->stBgpMsg.pMsgInfoItem[i].pstOpenMsg);
+                            tx->stBgpMsg.pMsgInfoItem[i].pstOpenMsg = NULL;
+                        }
+                        break;
+                    case BGP_MSG_TYPE_UPDATE:
+                        if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg != NULL) {
+                            if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->pPrefixList != NULL) {
+                                free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->pPrefixList);
+                                tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->pPrefixList = NULL;
+                            }
+                            if (tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.iAsNum > 0) {
+                                free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.piASList);
+                                tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg->stAsList.piASList = NULL;
+                            }
+                            free(tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg);
+                            tx->stBgpMsg.pMsgInfoItem[i].pstUpdateMsg = NULL;
+                        }
+                        break;
+                    case BGP_MSG_TYPE_NOTIFICATION:
+                        if (tx->stBgpMsg.pMsgInfoItem[i].pstNotifyMsg != NULL) {
+                            free(tx->stBgpMsg.pMsgInfoItem[i].pstNotifyMsg);
+                            tx->stBgpMsg.pMsgInfoItem[i].pstNotifyMsg = NULL;
+                        }
+                        break;
+                }
+            }
+            free(tx->stBgpMsg.pMsgInfoItem);
+            tx->stBgpMsg.pMsgInfoItem = NULL;
+        }
         if (tx->tx_data.events != NULL) {
             if (tx->tx_data.events->cnt <= bgp_state->events)
                 bgp_state->events -= tx->tx_data.events->cnt;
@@ -384,339 +455,739 @@ static AppLayerResult BgpParse(Flow *f, void *state, AppLayerParserState *pstate
     }
     pBgpHdr = (BgpHeader *)(input);
     usPacketLen = htons(pBgpHdr->usLen);
-    SCLogDebug("usPacketLen=%d pBgpHdr->usLen=%d\n", usPacketLen, pBgpHdr->usLen);
+    SCLogDebug("\n----------------BgpParse usPacketLen=%d "
+               "pBgpHdr->usLen=%d----------------------------\n",
+            usPacketLen, pBgpHdr->usLen);
     if (input_len > 0 && usPacketLen <= input_len) {
-        int iOff = 0;
+        uint32_t iOff = 0;
+
         tx = BgpTransactionAlloc(Bgp);
         if (tx == NULL)
             SCReturnStruct(APP_LAYER_OK);
+        tx->stBgpMsg.iMsgMaxNum = 0;
+        tx->stBgpMsg.iMsgCurNum = 0;
+        tx->stBgpMsg.pMsgInfoItem = NULL;
 
-        if (direction == STREAM_TOSERVER) // request
-        {
-            tx->request_buffer_len = input_len;
-            tx->request_buffer = SCCalloc(1, input_len + 1);
-            if (tx->request_buffer != NULL) {
-                memcpy(tx->request_buffer, input, input_len);
-                tx->request_buffer[input_len] = '\0';
-            } else {
-                tx->request_buffer_len = 0;
-            }
-            tx->tx_id = f->tenant_id;
-        } else if (direction == STREAM_TOCLIENT) // response
-        {
-            tx->response_buffer_len = input_len;
-            tx->response_buffer = SCCalloc(1, input_len + 1);
-            if (tx->response_buffer != NULL) {
-                memcpy(tx->response_buffer, input, input_len);
-                tx->response_buffer[input_len] = '\0';
-            } else {
-                tx->request_buffer_len = 0;
-            }
-            tx->tx_id = f->tenant_id;
+        if (tx->payload_buffer != NULL) {
+            free(tx->payload_buffer);
+            tx->payload_buffer_len = 0;
         }
+        tx->payload_buffer_len = input_len;
+        tx->payload_buffer = SCCalloc(1, input_len + 1);
+        if (tx->payload_buffer != NULL) {
+            memcpy(tx->payload_buffer, input, input_len);
+            tx->payload_buffer[input_len] = '\0';
+        } else {
+            tx->payload_buffer_len = 0;
+        }
+        tx->tx_id = f->tenant_id;
 
-        tx->iMsgType = pBgpHdr->ucType;
-        iOff = 19; // sizeof(BgpHeader)
-        switch (pBgpHdr->ucType) {
-            case BGP_MSG_TYPE_OPEN:
-                printf("BgpParse - OPEN\n");
-                {
-                    BgpOpenMsg *pOpenMsg = (BgpOpenMsg *)(input + iOff);
-                    tx->stOpenMsg.ucVer = pOpenMsg->ucVer;
-                    tx->stOpenMsg.usSys = htons(pOpenMsg->usSys);
-                    tx->stOpenMsg.usHoldTime = htons(pOpenMsg->usHoldTime);
-                    printf("    version=%d sys=%u holdtime=%u ucOptLen=%d\n", tx->stOpenMsg.ucVer,
-                            tx->stOpenMsg.usSys, tx->stOpenMsg.usHoldTime, pOpenMsg->ucOptParamLen);
-                    memcpy(tx->stOpenMsg.ucRouteId, pOpenMsg->ucRouteId, 4);
-                    printf("    Routerid: ");
-                    // DepProt_PrintHex(pOpenMsg->ucRouteId, 4);
-                    tx->stOpenMsg.ucOptParamLen = pOpenMsg->ucOptParamLen;
-                    if (tx->stOpenMsg.ucOptParamLen > 0) {
-                        iOff += sizeof(BgpOpenMsg);
-                        if (iOff + pOpenMsg->ucOptParamLen <= usPacketLen) {
-                            int iOptionOff = 0;
-                            int iOptionNum = 0;
-                            while (iOptionOff < tx->stOpenMsg.ucOptParamLen) {
-                                BgpOptParamItem *pOpt = (BgpOptParamItem *)(input + iOff);
-                                printf("\t----------------option %d---------\n", iOptionNum);
-                                printf("\toption type %d\n", pOpt->ucParamType);
-                                printf("\toption len %d\n", pOpt->ucParamLen);
-                                if (pOpt->ucParamType == BGP_OPTION_AUTHENTICATION) {
-                                    printf("\toption param type is BGP_OPTION_AUTHENTICATION\n");
-                                } else if (pOpt->ucParamType == BGP_OPTION_CAPABILITY) {
-                                    printf("\toption param type is BGP_OPTION_CAPABILITY\n");
-                                } else {
-                                    SCLogNotice("BGP OPEN Message option %d type %d error!\n",
-                                            iOptionNum, pOpt->ucParamType);
+        while (iOff < input_len) {
+            pBgpHdr = (BgpHeader *)(input + iOff);
+            usPacketLen = htons(pBgpHdr->usLen);
+            iOff += BGP_HEADER_SIZE; // marker(16 bytes) + len(2 bytes) + type(1 byte)
+            SCLogDebug("\n    ----------BgpParse usPacketLen=%d pBgpHdr->usLen=%d iOff=%d "
+                       "input_len=%d\n",
+                    usPacketLen, pBgpHdr->usLen, iOff, input_len);
+            if (usPacketLen <= input_len) {
+                switch (pBgpHdr->ucType) {
+                    case BGP_MSG_TYPE_OPEN:
+                        SCLogDebug("    BgpParse - OPEN");
+                        if (input_len - iOff >= (BGP_MIN_OPEN_MSG_SIZE - BGP_HEADER_SIZE)) {
+                            BgpOpenMsg *pOpenMsg = (BgpOpenMsg *)(input + iOff);
+
+                            if (tx->stBgpMsg.iMsgMaxNum == 0) {
+                                SCLogDebug("tx->stBgpMsg.iMsgMaxNum == 0\n");
+                                tx->stBgpMsg.iMsgMaxNum = BGP_MAX_MSG_NUM_IN_A_PACKET;
+                                tx->stBgpMsg.iMsgCurNum = 0;
+                                tx->stBgpMsg.pMsgInfoItem = SCCalloc(
+                                        1, sizeof(BgpMsgInfoItem) * tx->stBgpMsg.iMsgMaxNum);
+                                if (tx->stBgpMsg.pMsgInfoItem == NULL) {
+                                    tx->stBgpMsg.iMsgMaxNum = 0;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_OPEN "
+                                               "tx->stBgpMsg.pMsgInfoItem SCCalloc error!");
                                     break;
                                 }
-                                iOff += 2 + pOpt->ucParamLen;
-                                iOptionOff += 2 + pOpt->ucParamLen;
-                                iOptionNum++;
-                                printf("\tiOff=%d\n", iOff);
-                            }
-                        }
-                    }
-                }
-                break;
-            case BGP_MSG_TYPE_UPDATE:
-                printf("BgpParse - UPDATE\n");
-                {
-                    int iAttrLen = 0;
-                    BgpUpdateMsg *pUpdate = (BgpUpdateMsg *)(input + iOff);
-                    printf("    withdrawn routes length %d\n    TotalPath Attribute Length %d\n",
-                            htons(pUpdate->usWithdrawnRoutesLen), htons(pUpdate->usPathAttrLen));
-                    iAttrLen = htons(pUpdate->usPathAttrLen);
-                    if (iAttrLen > 0) {
-                        iOff += sizeof(BgpUpdateMsg);
-                        if (iOff + iAttrLen <= usPacketLen) {
-                            int iAttrOff = 0;
-                            int iAttrNum = 0;
-                            while (iAttrOff < iAttrLen - 3) {
-                                const char *pcAttrTypeStr = NULL;
-                                int iAttrLen = 0;
-                                int iAttrExtend = 0;
-
-                                printf("\t--------------------\n\t %d Path Attribute ", iAttrNum);
-                                BgpPathAddrItem *pAttr = (BgpPathAddrItem *)(input + iOff);
-                                printf("\tFlags %02x\n", pAttr->ucFlags);
-                                printf("\tType code %d\n", pAttr->ucType);
-                                pcAttrTypeStr = SCMapEnumValueToName(pAttr->ucType, bgp_attr_type);
-                                if (pcAttrTypeStr != NULL) {
-                                    printf("\tType code str %s\n", pcAttrTypeStr);
+                                tx->stBgpMsg.pMsgInfoItem[0].pstOpenMsg =
+                                        SCCalloc(1, sizeof(BgpOpenMsg));
+                                if (tx->stBgpMsg.pMsgInfoItem[0].pstOpenMsg == NULL) {
+                                    SCFree(tx->stBgpMsg.pMsgInfoItem);
+                                    tx->stBgpMsg.iMsgMaxNum = 0;
+                                    tx->stBgpMsg.pMsgInfoItem = NULL;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_OPEN "
+                                               "tx->stBgpMsg.pMsgInfoItem[0].pstOpenMsg SCCalloc "
+                                               "error!");
+                                    break;
                                 }
-                                printf("\tAttr flage:");
-                                if ((pAttr->ucFlags & BGP_ATTR_FLAG_OPTIONAL) == 0) {
-                                    printf("Well-known");
-                                }
-                                if ((pAttr->ucFlags & BGP_ATTR_FLAG_TRANSITIVE) == 0) {
-                                    printf(", Non-transitive");
-                                }
-                                if ((pAttr->ucFlags & BGP_ATTR_FLAG_PARTIAL) == 0) {
-                                    printf(", Complete");
-                                }
-                                printf("\n");
-                                if (pAttr->ucFlags & BGP_ATTR_FLAG_EXTENDED_LENGTH) {
-                                    unsigned short *pusAttLen = NULL;
-
-                                    pusAttLen = (unsigned short *)(input + iOff + 2);
-                                    iAttrLen = htons(*pusAttLen);
-                                    printf("\tattrlen=%d iOff=%d\n", iAttrLen, iOff);
-                                    iOff += 4;
-                                    iAttrOff += 4;
-                                    iAttrExtend = 1;
-                                    printf("\tattrextend=%d\n", iAttrExtend);
+                            } else {
+                                if (tx->stBgpMsg.iMsgCurNum + 1 < tx->stBgpMsg.iMsgMaxNum) {
+                                    tx->stBgpMsg.iMsgCurNum++;
+                                    SCLogDebug("tx->stBgpMsg.iMsgCurNum == %d\n",
+                                            tx->stBgpMsg.iMsgCurNum);
+                                    tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].pstOpenMsg =
+                                            SCCalloc(1, sizeof(BgpOpenMsg));
+                                    if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstOpenMsg == NULL) {
+                                        SCFree(tx->stBgpMsg.pMsgInfoItem);
+                                        tx->stBgpMsg.iMsgMaxNum = 0;
+                                        tx->stBgpMsg.pMsgInfoItem = NULL;
+                                        SCLogError("BgpParse BGP_MSG_TYPE_OPEN "
+                                                   "tx->stBgpMsg.pMsgInfoItem[%d].pstOpenMsg "
+                                                   "SCCalloc error!",
+                                                tx->stBgpMsg.iMsgCurNum);
+                                        break;
+                                    }
                                 } else {
-                                    printf("\tattrlen=%d iOff=%d\n", input[iOff + 2], iOff);
-                                    iAttrLen = input[iOff + 2];
-                                    iOff += 3;
-                                    iAttrOff += 3;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_OPEN "
+                                               "tx->stBgpMsg.iMsgCurNum+1(%d) >=  "
+                                               "tx->stBgpMsg.iMsgMaxNum(%d)!",
+                                            tx->stBgpMsg.iMsgCurNum + 1, tx->stBgpMsg.iMsgMaxNum);
+                                    break;
                                 }
-                                switch (pAttr->ucType) {
-                                    case BGPTYPE_ORIGIN:
-                                        if (iAttrLen == 1) {
-                                            const char *pcBgpAttrOrigin = SCMapEnumValueToName(input[iOff], bgpattr_origin);
-                                            if (pcBgpAttrOrigin != NULL) {
-                                                printf("\t attr origin %s\n", pcBgpAttrOrigin);
-                                            } else {
-                                                printf("\t attr orgin id %d is invalid\n",
-                                                        input[iOff]);
+                            }
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].iMsgType =
+                                    BGP_MSG_TYPE_OPEN;
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].pstOpenMsg->ucVer =
+                                    pOpenMsg->ucVer;
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].pstOpenMsg->usSys =
+                                    htons(pOpenMsg->usSys);
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                    .pstOpenMsg->usHoldTime = htons(pOpenMsg->usHoldTime);
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                    .pstOpenMsg->ucOptParamLen = pOpenMsg->ucOptParamLen;
+                            memcpy(tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                            .pstOpenMsg->ucRouteId,
+                                    pOpenMsg->ucRouteId, 4);
+                            // printf("\t iMsgtype=%d version=%d sys=%u holdtime=%u ucOptLen=%d\n",
+                            //     tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].iMsgType,
+                            //     tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].pstOpenMsg->ucVer,tx->stBgpMsg.pMsgInfoItem[0].pstOpenMsg->usSys,
+                            //     tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].pstOpenMsg->usHoldTime,pOpenMsg->ucOptParamLen);
+                            memcpy(tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                            .pstOpenMsg->ucRouteId,
+                                    pOpenMsg->ucRouteId, 4);
+                            // printf("\tRouterid: ");
+
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                    .pstOpenMsg->ucOptParamLen = pOpenMsg->ucOptParamLen;
+                            if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                            .pstOpenMsg->ucOptParamLen > 0) {
+                                iOff += sizeof(BgpOpenMsg);
+                                if ((iOff + pOpenMsg->ucOptParamLen <= usPacketLen + iOff) &&
+                                        (iOff + pOpenMsg->ucOptParamLen <= input_len)) {
+                                    int iOptionOff = 0;
+                                    int iOptionNum = 0;
+                                    while (iOptionOff <
+                                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstOpenMsg->ucOptParamLen) {
+                                        BgpOptParamItem *pOpt = (BgpOptParamItem *)(input + iOff);
+                                        SCLogDebug("\t----------------option %d---------\n",
+                                                iOptionNum);
+                                        SCLogDebug("\toption type %d\n", pOpt->ucParamType);
+                                        SCLogDebug("\toption len %d\n", pOpt->ucParamLen);
+                                        if (pOpt->ucParamType == BGP_OPTION_AUTHENTICATION) {
+                                            SCLogDebug("\toption param type is "
+                                                       "BGP_OPTION_AUTHENTICATION\n");
+                                        } else if (pOpt->ucParamType == BGP_OPTION_CAPABILITY) {
+                                            SCLogDebug("\toption param type is "
+                                                       "BGP_OPTION_CAPABILITY\n");
+                                        } else {
+                                            SCLogError(
+                                                    "BGP OPEN Message option %d type %d error!\n",
+                                                    iOptionNum, pOpt->ucParamType);
+                                            break;
+                                        }
+                                        iOff += 2 + pOpt->ucParamLen;
+                                        iOptionOff += 2 + pOpt->ucParamLen;
+                                        iOptionNum++;
+                                    }
+                                }
+                            } else if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                               .pstOpenMsg->ucOptParamLen == 0) {
+                                iOff += usPacketLen - BGP_HEADER_SIZE;
+                            }
+                        } else {
+                            iOff = input_len;
+                        }
+                        break;
+                    case BGP_MSG_TYPE_UPDATE:
+                        SCLogDebug("    BgpParse - UPDATE");
+                        if (input_len - iOff >= BGP_MIN_UPDATE_MSG_SIZE - BGP_HEADER_SIZE) {
+                            int iAttrAllLen = 0;
+                            BgpUpdateMsg *pUpdate = (BgpUpdateMsg *)(input + iOff);
+                            // printf("    iOff=%d withdrawn routes length htons=%d  %d
+                            // htons(pUpdate->usPathAttrLen)=%d\n",
+                            //     iOff,htons(pUpdate->usWithdrawnRoutesLen),pUpdate->usWithdrawnRoutesLen,htons(pUpdate->usPathAttrLen));
+                            if (tx->stBgpMsg.iMsgMaxNum == 0) {
+                                SCLogDebug("tx->stBgpMsg.iMsgMaxNum == 0\n");
+                                tx->stBgpMsg.iMsgMaxNum = BGP_MAX_MSG_NUM_IN_A_PACKET;
+                                tx->stBgpMsg.iMsgCurNum = 0;
+                                tx->stBgpMsg.pMsgInfoItem = SCCalloc(
+                                        1, sizeof(BgpMsgInfoItem) * tx->stBgpMsg.iMsgMaxNum);
+                                if (tx->stBgpMsg.pMsgInfoItem == NULL) {
+                                    tx->stBgpMsg.iMsgMaxNum = 0;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_UPDATE "
+                                               "tx->stBgpMsg.pMsgInfoItem SCCalloc error!");
+                                    break;
+                                }
+                                tx->stBgpMsg.pMsgInfoItem[0].pstUpdateMsg =
+                                        SCCalloc(1, sizeof(BgpMsgUpdateInfo));
+                                if (tx->stBgpMsg.pMsgInfoItem[0].pstUpdateMsg == NULL) {
+                                    SCFree(tx->stBgpMsg.pMsgInfoItem);
+                                    tx->stBgpMsg.iMsgMaxNum = 0;
+                                    tx->stBgpMsg.pMsgInfoItem = NULL;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_UPDATE "
+                                               "tx->stBgpMsg.pMsgInfoItem[0].pstOpenMsg SCCalloc "
+                                               "error!");
+                                    break;
+                                }
+                            } else {
+                                if (tx->stBgpMsg.iMsgCurNum + 1 < tx->stBgpMsg.iMsgMaxNum) {
+                                    tx->stBgpMsg.iMsgCurNum++;
+                                    SCLogDebug("tx->stBgpMsg.iMsgCurNum == %d\n",
+                                            tx->stBgpMsg.iMsgCurNum);
+                                    tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                            .pstUpdateMsg = SCCalloc(1, sizeof(BgpMsgUpdateInfo));
+                                    if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstUpdateMsg == NULL) {
+                                        SCFree(tx->stBgpMsg.pMsgInfoItem);
+                                        tx->stBgpMsg.iMsgMaxNum = 0;
+                                        tx->stBgpMsg.pMsgInfoItem = NULL;
+                                        SCLogError("BgpParse BGP_MSG_TYPE_UPDATE "
+                                                   "tx->stBgpMsg.pMsgInfoItem[%d].pstUpdateMsg "
+                                                   "SCCalloc error!",
+                                                tx->stBgpMsg.iMsgCurNum);
+                                        break;
+                                    }
+                                } else {
+                                    SCLogError("BgpParse BGP_MSG_TYPE_UPDATE "
+                                               "tx->stBgpMsg.iMsgCurNum+1(%d) >=  "
+                                               "tx->stBgpMsg.iMsgMaxNum(%d)!",
+                                            tx->stBgpMsg.iMsgCurNum + 1, tx->stBgpMsg.iMsgMaxNum);
+                                    break;
+                                }
+                            }
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                    .pstUpdateMsg->pcOriginType = NULL;
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].iMsgType =
+                                    BGP_MSG_TYPE_UPDATE;
+                            if (pUpdate->usWithdrawnRoutesLen != 0) {
+                                unsigned short *pusAttrLen = NULL;
+                                unsigned short usWithDrawLen = 0;
+
+                                usWithDrawLen = htons(pUpdate->usWithdrawnRoutesLen);
+                                if (usWithDrawLen > 0 && ((iOff + usWithDrawLen) < input_len)) {
+                                    int iWithDrawOff = 0;
+
+                                    if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstUpdateMsg->iPrefixMaxNum == 0) {
+                                        tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                .pstUpdateMsg->iPrefixMaxNum = usWithDrawLen / 2;
+                                        tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                .pstUpdateMsg->iPrefixCurNum = 0;
+                                        tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                .pstUpdateMsg->pPrefixList = SCCalloc(
+                                                1, sizeof(BgpMsgPrefix) * usWithDrawLen / 2);
+                                        if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                        .pstUpdateMsg->pPrefixList == NULL) {
+                                            SCLogError("BgpParse BGP_MSG_TYPE_UPDATE "
+                                                       "tx->stBgpMsg.pMsgInfoItem[%d].pstUpdateMsg."
+                                                       "pPrefixList malloc error!",
+                                                    tx->stBgpMsg.iMsgCurNum);
+                                            break;
+                                        } else {
+                                        }
+                                        iWithDrawOff += 2;
+                                        SCLogDebug("tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg."
+                                                   "iMsgCurNum].pstUpdateMsg->iPrefixCurNum=%d\n",
+                                                tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                        .pstUpdateMsg->iPrefixCurNum);
+                                        while (iWithDrawOff < usWithDrawLen) {
+                                            unsigned char ucWithdrawItemLen = 0;
+
+                                            ucWithdrawItemLen = input[iOff + iWithDrawOff] + 7 / 8;
+
+                                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstUpdateMsg
+                                                    ->pPrefixList[tx->stBgpMsg
+                                                                    .pMsgInfoItem[tx->stBgpMsg
+                                                                                    .iMsgCurNum]
+                                                                    .pstUpdateMsg->iPrefixCurNum]
+                                                    .ucLen = input[iOff + iWithDrawOff];
+                                            memcpy(tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg
+                                                            ->pPrefixList[tx->stBgpMsg
+                                                                            .pMsgInfoItem[tx->stBgpMsg
+                                                                                            .iMsgCurNum]
+                                                                            .pstUpdateMsg
+                                                                            ->iPrefixCurNum]
+                                                            .ucPrefix,
+                                                    input + iOff + iWithDrawOff + 1,
+                                                    ucWithdrawItemLen);
+                                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstUpdateMsg->iPrefixCurNum++;
+                                            iWithDrawOff += 1 + (ucWithdrawItemLen + 7) / 8;
+                                            SCLogDebug("iWithdrawOff=%d ucWithdrawItemLen=%d \n",
+                                                    iWithDrawOff, ucWithdrawItemLen);
+                                        }
+                                    }
+                                }
+                                iOff += 2; // Withdraw Route len (2bytes)
+                                iOff += usWithDrawLen;
+                                SCLogDebug("withdraw iOff=%d "
+                                           "htons(pUpdate->usWithdrawnRoutesLen)=%d\n",
+                                        iOff, htons(pUpdate->usWithdrawnRoutesLen));
+                                if (iOff + 2 <= input_len) {
+                                    pusAttrLen = (unsigned short *)(input + iOff);
+                                    iAttrAllLen = htons(*pusAttrLen);
+                                    SCLogDebug("\tTotalPath Attribute Length %d\n", iAttrAllLen);
+                                    if (iAttrAllLen == 0) {
+                                        iOff += 2;
+                                    }
+                                }
+                            } else {
+                                iAttrAllLen = htons(pUpdate->usPathAttrLen);
+                                iOff += sizeof(BgpUpdateMsg);
+                                SCLogDebug("\tTotalPath Attribute Length %d\n", iAttrAllLen);
+                            }
+                            if (iAttrAllLen > 0) {
+                                if ((iOff + iAttrAllLen <= usPacketLen + iOff) &&
+                                        (iOff + iAttrAllLen <= input_len)) {
+                                    int iAttrOff = 0;
+                                    int iAttrNum = 0;
+                                    while ((iAttrOff < iAttrAllLen - 3) && (iOff < input_len)) {
+                                        const char *pcAttrTypeStr = NULL;
+                                        int iAttrLen = 0;
+                                        // int iAttrExtend = 0;
+
+                                        SCLogDebug("\t--------------------\n\t %d Path Attribute ",
+                                                iAttrNum);
+                                        BgpPathAddrItem *pAttr = (BgpPathAddrItem *)(input + iOff);
+                                        SCLogDebug("\tFlags %02x\n", pAttr->ucFlags);
+                                        SCLogDebug("\tType code %d\n", pAttr->ucType);
+                                        pcAttrTypeStr = SCMapEnumValueToName(pAttr->ucType, bgp_attr_type);
+                                        if (pcAttrTypeStr != NULL) {
+                                            SCLogDebug("\tType code str %s\n", pcAttrTypeStr);
+                                        }
+                                        SCLogDebug("\tAttr flage:");
+                                        if ((pAttr->ucFlags & BGP_ATTR_FLAG_OPTIONAL) == 0) {
+                                            SCLogDebug("Well-known");
+                                        }
+                                        if ((pAttr->ucFlags & BGP_ATTR_FLAG_TRANSITIVE) == 0) {
+                                            SCLogDebug(", Non-transitive");
+                                        }
+                                        if ((pAttr->ucFlags & BGP_ATTR_FLAG_PARTIAL) == 0) {
+                                            SCLogDebug(", Complete");
+                                        }
+                                        if (pAttr->ucFlags & BGP_ATTR_FLAG_EXTENDED_LENGTH) {
+                                            unsigned short *pusAttLen = NULL;
+
+                                            pusAttLen = (unsigned short *)(input + iOff + 2);
+                                            iAttrLen = htons(*pusAttLen);
+                                            SCLogDebug("\tattrlen=%d iOff=%d\n", iAttrLen, iOff);
+                                            iOff += 4;
+                                            iAttrOff += 4;
+                                            // iAttrExtend = 1;
+                                        } else {
+                                            SCLogDebug("\tattrlen=%d iOff=%d\n", input[iOff + 2],
+                                                    iOff);
+                                            iAttrLen = input[iOff + 2];
+                                            iOff += 3;
+                                            iAttrOff += 3;
+                                        }
+                                        switch (pAttr->ucType) {
+                                            case BGPTYPE_ORIGIN:
+                                                if (iAttrLen == 1) {
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->pcOriginType = (char *)SCMapEnumValueToName(input[iOff], bgpattr_origin);
+                                                    SCLogDebug("***********************tx->"
+                                                               "stBgpMsg.pMsgInfoItem[%d]."
+                                                               "pstUpdateMsg->pcOriginType=%s\n",
+                                                            tx->stBgpMsg.iMsgCurNum,
+                                                            tx->stBgpMsg
+                                                                    .pMsgInfoItem[tx->stBgpMsg
+                                                                                    .iMsgCurNum]
+                                                                    .pstUpdateMsg->pcOriginType);
+                                                } else {
+                                                    SCLogError(
+                                                            "BgpParse Origin (invalid): %u bytes\n",
+                                                            iAttrLen);
+                                                    break;
+                                                }
+                                                break;
+                                            case BGPTYPE_AS_PATH:
+                                                if (iAttrLen > 0) {
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->iAsPathType =
+                                                            input[iOff];
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->stAsPathInfo.iAsNum =
+                                                            input[iOff + 1];
+                                                    if (tx->stBgpMsg
+                                                                    .pMsgInfoItem[tx->stBgpMsg
+                                                                                    .iMsgCurNum]
+                                                                    .pstUpdateMsg->stAsPathInfo
+                                                                    .iAsNum == 0) {
+                                                        tx->stBgpMsg
+                                                                .pMsgInfoItem[tx->stBgpMsg
+                                                                                .iMsgCurNum]
+                                                                .pstUpdateMsg->stAsPathInfo
+                                                                .piASList = NULL;
+                                                    } else {
+                                                        tx->stBgpMsg
+                                                                .pMsgInfoItem[tx->stBgpMsg
+                                                                                .iMsgCurNum]
+                                                                .pstUpdateMsg->stAsPathInfo
+                                                                .piASList = SCCalloc(
+                                                                1, sizeof(int) * input[iOff + 1]);
+
+                                                        SCLogDebug("BGPTYPE_AS_PATH iAsPathType=%d "
+                                                                   "AsNum=%d\n",
+                                                                input[iOff], input[iOff + 1]);
+                                                        if (tx->stBgpMsg
+                                                                        .pMsgInfoItem[tx->stBgpMsg
+                                                                                        .iMsgCurNum]
+                                                                        .pstUpdateMsg->stAsPathInfo
+                                                                        .piASList != NULL) {
+                                                            int iAsNum = 0;
+
+                                                            for (iAsNum = 0;
+                                                                    iAsNum < input[iOff + 1];
+                                                                    iAsNum++) {
+                                                                int *piAsPathItem =
+                                                                        (int *)(input + iOff + 2 +
+                                                                                iAsNum * 4);
+
+                                                                tx->stBgpMsg
+                                                                        .pMsgInfoItem[tx->stBgpMsg
+                                                                                        .iMsgCurNum]
+                                                                        .pstUpdateMsg->stAsPathInfo
+                                                                        .piASList[iAsNum] =
+                                                                        htonl(*piAsPathItem);
+                                                                SCLogDebug("BGPTYPE_AS_PATH %04x\n",
+                                                                        tx->stBgpMsg
+                                                                                .pMsgInfoItem[tx->stBgpMsg
+                                                                                                .iMsgCurNum]
+                                                                                .pstUpdateMsg
+                                                                                ->stAsPathInfo
+                                                                                .piASList[iAsNum]);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                break;
+                                            case BGPTYPE_NEXT_HOP:
+                                                if (iAttrLen == 4) {
+                                                    memcpy(tx->stBgpMsg
+                                                                    .pMsgInfoItem[tx->stBgpMsg
+                                                                                    .iMsgCurNum]
+                                                                    .pstUpdateMsg->ucNextHopV4,
+                                                            (unsigned char *)(input + iOff), 4);
+                                                } else {
+                                                    SCLogError("BgpParse attr BGPTYPE_NEXT_HOP len "
+                                                               "is %d ,not 4 ,so it's invalid\n",
+                                                            iAttrLen);
+                                                }
+                                                break;
+                                            case BGPTYPE_AGGREGATOR:
+                                                if (iAttrLen == 6) {
+                                                    unsigned short *pusAs =
+                                                            (unsigned short *)(input + iOff);
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->uiAggregatorAs =
+                                                            htons(*pusAs);
+                                                    memcpy(&(tx->stBgpMsg
+                                                                           .pMsgInfoItem[tx->stBgpMsg
+                                                                                           .iMsgCurNum]
+                                                                           .pstUpdateMsg
+                                                                           ->uiAggregatorOrigin),
+                                                            (unsigned char *)(input + iOff + 2), 4);
+                                                } else if (iAttrLen == 8) {
+                                                    unsigned int *puiAs =
+                                                            (unsigned int *)(input + iOff);
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->uiAggregatorAs =
+                                                            htonl(*puiAs);
+                                                    memcpy(&(tx->stBgpMsg
+                                                                           .pMsgInfoItem[tx->stBgpMsg
+                                                                                           .iMsgCurNum]
+                                                                           .pstUpdateMsg
+                                                                           ->uiAggregatorOrigin),
+                                                            (unsigned char *)(input + iOff + 4), 4);
+                                                } else if (iAttrLen == 0) {
+
+                                                } else {
+                                                    SCLogDebug("\tAggregator (invalid): %u byte\n",
+                                                            iAttrLen);
+                                                }
+                                                break;
+
+                                            case BGPTYPE_ORIGINATOR_ID:
+                                                if (iAttrLen % 4 != 0) {
+                                                    SCLogDebug("Originator identifier (invalid): "
+                                                               "%u byte\n",
+                                                            iAttrLen);
+                                                    break;
+                                                } else {
+                                                    char acOrigin[16] = { 0x0 };
+                                                    PrintInet(AF_INET, (const void *)(input + iOff), acOrigin, sizeof(acOrigin));
+                                                    SCLogDebug(
+                                                            "\tAggregator origin %s\n", acOrigin);
+                                                }
+                                                break;
+                                            case BGPTYPE_EXTENDED_COMMUNITY:
+                                                if (iAttrLen % 4 != 0) {
+                                                    SCLogDebug("Community length %u wrong, must be "
+                                                               "modulo 8",
+                                                            iAttrLen);
+                                                    break;
+                                                }
+                                                break;
+                                            case BGPTYPE_MULTI_EXIT_DISC:
+                                                if (iAttrLen == 4) {
+                                                    // int *piMultiExitDisc = (int *)(input + iOff);
+
+                                                    // SCLogDebug("\t attr multi_exit_disc %u
+                                                    // %u\n",htonl(*piMultiExitDisc),*piMultiExitDisc);
+                                                } else {
+                                                    SCLogDebug(
+                                                            "\t attr BGPTYPE_MULTI_EXIT_DISC len "
+                                                            "is %d ,not 4 ,so it's invalid\n",
+                                                            iAttrLen);
+                                                }
+                                                break;
+                                            case BGPTYPE_LOCAL_PREF:
+                                                if (iAttrLen == 4) {
+                                                    // int *piMultiExitDisc = (int *)(input + iOff);
+
+                                                    // SCLogDebug("\t attr multi_exit_disc %u
+                                                    // %u\n",htonl(*piMultiExitDisc),*piMultiExitDisc);
+                                                } else {
+                                                    SCLogDebug(
+                                                            "\t attr BGPTYPE_MULTI_EXIT_DISC len "
+                                                            "is %d ,not 4 ,so it's invalid\n",
+                                                            iAttrLen);
+                                                }
+
+                                                break;
+                                            case BGPTYPE_ATOMIC_AGGREGATE:
+                                                if (iAttrLen != 0) {
+                                                    SCLogDebug("\tAtomic aggregate (invalid): %u "
+                                                               "byte\n",
+                                                            iAttrLen);
+                                                } else {
+                                                    SCLogDebug("\tBGPTYPE_ATOMIC_AGGREGATE\n");
+                                                    iOff += iAttrLen;
+                                                }
+                                                break;
+                                            case BGPTYPE_AS4_AGGREGATOR:
+                                                if (iAttrLen == 8) {
+                                                } else {
+                                                    SCLogDebug("\tAggregator (invalid): %u byte\n",
+                                                            iAttrLen);
+                                                }
+                                                break;
+                                            case BGPTYPE_COMMUNITIES:
+                                                if (iAttrLen % 4 != 0) {
+                                                    SCLogDebug("Communities (invalid): %u byte\n",
+                                                            iAttrLen);
+                                                    break;
+                                                } else {
+                                                }
+                                                break;
+                                            case BGPTYPE_AS4_PATH:
+                                            case BGPTYPE_CLUSTER_LIST:
+                                            case BGPTYPE_D_PATH:
+                                            case BGPTYPE_ATTR_SET:
+                                            case BGPTYPE_LARGE_COMMUNITY:
+                                            case BGPTYPE_BGPSEC_PATH:
+                                            case BGPTYPE_BGP_PREFIX_SID:
+                                            case BGPTYPE_PMSI_TUNNEL_ATTR:
+                                            case BGPTYPE_MP_REACH_NLRI:
+                                            case BGPTYPE_MP_UNREACH_NLRI:
+                                            case BGPTYPE_SAFI_SPECIFIC_ATTR:
+                                            case BGPTYPE_TUNNEL_ENCAPS_ATTR:
+                                            case BGPTYPE_AIGP:
+                                            case BGPTYPE_LINK_STATE_ATTR:
+                                            case BGPTYPE_LINK_STATE_OLD_ATTR:
+                                            default:
+                                                break;
+                                        }
+                                        iOff += iAttrLen;
+                                        iAttrOff += iAttrLen;
+                                        iAttrNum++;
+                                    }
+
+                                    SCLogDebug("iAttrOff=%d iAttrNum=%d iOff=%d\n", iAttrOff,
+                                            iAttrNum, iOff);
+                                    if (iOff + 2 <= input_len) {
+                                        int iNLRILen = 0;
+                                        iNLRILen = (input[iOff] + 7) / 8;
+                                        SCLogDebug(
+                                                "+++++++++++++++++++++++++++++++++iNULRILen=%d "
+                                                "input_len=%d iOff=%d tx->stBgpMsg.iMsgCurNum=%d\n",
+                                                iNLRILen, input_len, iOff, tx->stBgpMsg.iMsgCurNum);
+                                        if (iNLRILen != 0) {
+                                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstUpdateMsg->stNLRI.ucLen = input[iOff];
+                                            if (iOff + iNLRILen + 1 <= input_len) {
+                                                memcpy(tx->stBgpMsg
+                                                                .pMsgInfoItem[tx->stBgpMsg
+                                                                                .iMsgCurNum]
+                                                                .pstUpdateMsg->stNLRI.ucPrefix,
+                                                        input + iOff + 1, iNLRILen);
+                                                iOff += 1 + iNLRILen;
                                             }
-                                        } else {
-                                            printf("Origin (invalid): %u bytes\n", iAttrLen);
-                                            break;
+                                            SCLogDebug(
+                                                    "+++++++++++++++++++NLRI.ucLen=%d "
+                                                    "NLRI.ucPrefix=%d tx->stBgpMsg.iMsgCurNum=%d\n",
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->stNLRI.ucLen,
+                                                    tx->stBgpMsg
+                                                            .pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                            .pstUpdateMsg->stNLRI.ucPrefix[0],
+                                                    tx->stBgpMsg.iMsgCurNum);
                                         }
-                                        break;
-                                    case BGPTYPE_AS_PATH:
-                                    case BGPTYPE_AS4_PATH:
-
-                                        break;
-                                    case BGPTYPE_NEXT_HOP:
-                                        if (iAttrLen == 4) {
-                                            char acTmp[16] = { 0x0 };
-                                            PrintInet(AF_INET, (const void *)(input + iOff), acTmp, sizeof(acTmp));
-                                            printf("\t attr net hot %s\n", acTmp);
-                                        } else {
-                                            printf("\t attr BGPTYPE_NEXT_HOP len is %d ,not 4 ,so "
-                                                   "it's invalid\n",
-                                                    iAttrLen);
-                                        }
-                                        break;
-                                    case BGPTYPE_MULTI_EXIT_DISC:
-                                        if (iAttrLen == 4) {
-                                            int *piMultiExitDisc = (int *)(input + iOff);
-
-                                            printf("\t attr multi_exit_disc %u %u\n",
-                                                    htonl(*piMultiExitDisc), *piMultiExitDisc);
-                                        } else {
-                                            printf("\t attr BGPTYPE_MULTI_EXIT_DISC len is %d ,not "
-                                                   "4 ,so it's invalid\n",
-                                                    iAttrLen);
-                                        }
-                                        break;
-                                    case BGPTYPE_LOCAL_PREF:
-                                        if (iAttrLen == 4) {
-                                            int *piMultiExitDisc = (int *)(input + iOff);
-
-                                            printf("\t attr multi_exit_disc %u %u\n",
-                                                    htonl(*piMultiExitDisc), *piMultiExitDisc);
-                                        } else {
-                                            printf("\t attr BGPTYPE_MULTI_EXIT_DISC len is %d ,not "
-                                                   "4 ,so it's invalid\n",
-                                                    iAttrLen);
-                                        }
-
-                                        break;
-                                    case BGPTYPE_ATOMIC_AGGREGATE:
-                                        if (iAttrLen != 0) {
-                                            printf("Atomic aggregate (invalid): %u byte\n",
-                                                    iAttrLen);
-                                        } else {
-                                            printf("BGPTYPE_ATOMIC_AGGREGATE\n");
-                                        }
-                                        break;
-                                    case BGPTYPE_AGGREGATOR:
-                                        if (iAttrLen == 6) {
-                                            unsigned short *pusAs =
-                                                    (unsigned short *)(input + iOff);
-                                            char acOrigin[16] = { 0x0 };
-                                            printf("Aggregator AS: %d\n", htons(*pusAs));
-                                            iOff += 2;
-
-                                            PrintInet(AF_INET, (const void *)(input + iOff), acOrigin, sizeof(acOrigin));
-                                            printf("Aggregator origin %s\n", acOrigin);
-
-                                        } else if (iAttrLen == 8) {
-
-                                        } else {
-                                            printf("Aggregator (invalid): %u byte\n", iAttrLen);
-                                        }
-                                        /* FALL THROUGH */
-                                    case BGPTYPE_AS4_AGGREGATOR:
-                                        if (iAttrLen == 8) {
-                                            printf("Aggregator (invalid): %u byte", iAttrLen);
-                                            break;
-                                        } else {
-                                        }
-                                        break;
-                                    case BGPTYPE_COMMUNITIES:
-                                        if (iAttrLen % 4 != 0) {
-                                            printf("Communities (invalid): %u byte\n", iAttrLen);
-                                            break;
-                                        }
-                                        break;
-                                    case BGPTYPE_ORIGINATOR_ID:
-                                        if (iAttrLen % 4 != 0) {
-                                            printf("Originator identifier (invalid): %u byte\n",
-                                                    iAttrLen);
-                                            break;
-                                        } else {
-                                            char acOrigin[16] = { 0x0 };
-                                            PrintInet(AF_INET, (const void *)(input + iOff), acOrigin, sizeof(acOrigin));
-                                            printf("Aggregator origin %s\n", acOrigin);
-                                        }
-
-                                        break;
-                                    case BGPTYPE_MP_REACH_NLRI:
-
-                                        break;
-                                    case BGPTYPE_MP_UNREACH_NLRI:
-                                        break;
-                                    case BGPTYPE_CLUSTER_LIST:
-                                        if (iAttrLen % 4 != 0) {
-                                            printf("Cluster list (invalid): %u byte\n", iAttrLen);
-                                            break;
-                                        }
-                                        break;
-                                    case BGPTYPE_EXTENDED_COMMUNITY:
-                                        if (iAttrLen % 4 != 0) {
-                                            printf("Community length %u wrong, must be modulo 8",
-                                                    iAttrLen);
-                                            break;
-                                        } else {
-                                            // DepProt_PrintHex(input + iOff, 8);
-                                        }
-                                        break;
-                                    case BGPTYPE_SAFI_SPECIFIC_ATTR:
-                                        break;
-                                    case BGPTYPE_TUNNEL_ENCAPS_ATTR:
-
-                                        break;
-                                    case BGPTYPE_AIGP:
-                                        break;
-                                    case BGPTYPE_LINK_STATE_ATTR:
-                                    case BGPTYPE_LINK_STATE_OLD_ATTR:
-                                        break;
-
-                                    case BGPTYPE_LARGE_COMMUNITY:
-                                        if (iAttrLen == 0 || iAttrLen % 12) {
-                                            break;
-                                        }
-
-                                        break;
-                                    case BGPTYPE_BGPSEC_PATH:
-
-                                        break;
-                                    case BGPTYPE_BGP_PREFIX_SID:
-
-                                        break;
-                                    case BGPTYPE_PMSI_TUNNEL_ATTR:
-
-                                        break;
-
-                                    case BGPTYPE_ATTR_SET:
-                                        if (iAttrLen >= 4) {
-                                        } else {
-                                            printf("Attribute set (invalid): %u bytes\n", iAttrLen);
-                                            break;
-                                        }
-                                        break;
-                                    case BGPTYPE_D_PATH:
-                                        if (iAttrLen < 8) {
-                                            printf("D-PATH attribute has invalid length (invalid): "
-                                                   "%u byte\n",
-                                                    iAttrLen);
-                                            break;
-                                        }
-
-                                        break;
-                                    default:
-
-                                        break;
+                                    }
                                 }
+                            }
 
-                                iOff += iAttrLen;
-                                iAttrOff += iAttrLen;
-                                iAttrNum++;
+                        } else {
+                            if (0) {
+                                int iNLRILen = 0;
+                                iNLRILen = (input[iOff] + 7) / 8;
+                                if (iNLRILen != 0) {
+                                    tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                            .pstUpdateMsg->stNLRI.ucLen = input[iOff];
+                                    if (iOff + iNLRILen <= input_len) {
+                                        memcpy(tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                        .pstUpdateMsg->stNLRI.ucPrefix,
+                                                input + iOff + 1, iNLRILen);
+                                        iOff += 1 + iNLRILen;
+                                    }
+                                }
                             }
                         }
-                    }
+                        break;
+                    case BGP_MSG_TYPE_NOTIFICATION:
+                        SCLogDebug("    BgpParse - NOTIFICATION");
+                        if (input_len - iOff >= (BGP_MIN_NOTIFICATION_MSG_SIZE - BGP_HEADER_SIZE) ||
+                                input_len ==
+                                        (uint32_t)(BGP_MIN_NOTIFICATION_MSG_SIZE + usPacketLen)) {
+                            BgpNotifyMsg *pNotifyMsg = (BgpNotifyMsg *)(input + iOff);
+                            if (tx->stBgpMsg.iMsgMaxNum == 0) {
+                                SCLogDebug("tx->stBgpMsg.iMsgMaxNum == 0\n");
+                                tx->stBgpMsg.iMsgMaxNum = BGP_MAX_MSG_NUM_IN_A_PACKET;
+                                tx->stBgpMsg.iMsgCurNum = 0;
+                                tx->stBgpMsg.pMsgInfoItem = SCCalloc(
+                                        1, sizeof(BgpMsgInfoItem) * tx->stBgpMsg.iMsgMaxNum);
+                                if (tx->stBgpMsg.pMsgInfoItem == NULL) {
+                                    tx->stBgpMsg.iMsgMaxNum = 0;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_NOTIFICATION "
+                                               "tx->stBgpMsg.pMsgInfoItem SCCalloc error!");
+                                    break;
+                                }
+                                tx->stBgpMsg.pMsgInfoItem[0].pstNotifyMsg =
+                                        SCCalloc(1, sizeof(BgpNotifyMsg));
+                                if (tx->stBgpMsg.pMsgInfoItem[0].pstNotifyMsg == NULL) {
+                                    SCFree(tx->stBgpMsg.pMsgInfoItem);
+                                    tx->stBgpMsg.iMsgMaxNum = 0;
+                                    tx->stBgpMsg.pMsgInfoItem = NULL;
+                                    SCLogError("BgpParse BGP_MSG_TYPE_NOTIFICATION "
+                                               "tx->stBgpMsg.pMsgInfoItem[0].pstNotifyMsg SCCalloc "
+                                               "error!");
+                                    break;
+                                }
+                            } else {
+                                if (tx->stBgpMsg.iMsgCurNum + 1 < tx->stBgpMsg.iMsgMaxNum) {
+                                    tx->stBgpMsg.iMsgCurNum++;
+                                    SCLogDebug("tx->stBgpMsg.iMsgCurNum == %d\n",
+                                            tx->stBgpMsg.iMsgCurNum);
+                                    tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                            .pstNotifyMsg = SCCalloc(1, sizeof(BgpNotifyMsg));
+                                    if (tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                                    .pstNotifyMsg == NULL) {
+                                        SCFree(tx->stBgpMsg.pMsgInfoItem);
+                                        tx->stBgpMsg.iMsgMaxNum = 0;
+                                        tx->stBgpMsg.pMsgInfoItem = NULL;
+                                        SCLogError("BgpParse BGP_MSG_TYPE_NOTIFICATION "
+                                                   "tx->stBgpMsg.pMsgInfoItem[%d].pstUpdateMsg "
+                                                   "SCCalloc error!",
+                                                tx->stBgpMsg.iMsgCurNum);
+                                        break;
+                                    }
+                                } else {
+                                    SCLogDebug("tx->stBgpMsg.iMsgCurNum == %d\n",
+                                            tx->stBgpMsg.iMsgCurNum);
+                                    SCLogError("BgpParse BGP_MSG_TYPE_NOTIFICATION "
+                                               "tx->stBgpMsg.iMsgCurNum+1(%d) >=  "
+                                               "tx->stBgpMsg.iMsgMaxNum(%d)!",
+                                            tx->stBgpMsg.iMsgCurNum + 1, tx->stBgpMsg.iMsgMaxNum);
+                                    break;
+                                }
+                            }
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum].iMsgType =
+                                    BGP_MSG_TYPE_NOTIFICATION;
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                    .pstNotifyMsg->ucErrCode = pNotifyMsg->ucErrCode;
+                            tx->stBgpMsg.pMsgInfoItem[tx->stBgpMsg.iMsgCurNum]
+                                    .pstNotifyMsg->ucErrSubCode = pNotifyMsg->ucErrSubCode;
+
+                        } else {
+                            iOff = input_len;
+                        }
+                        break;
+                    case BGP_MSG_TYPE_KEEPALIVE:
+                        SCLogDebug("    BgpParse - KEEPALIVE");
+                        if ((input_len - iOff < BGP_MIN_KEEPALVE_MSG_SIZE) &&
+                                (usPacketLen < input_len)) {
+                            if (iOff + BGP_HEADER_SIZE == input_len) {
+                                iOff += usPacketLen - BGP_HEADER_SIZE;
+                            } else {
+                                iOff = input_len;
+                                SCLogDebug("BgpParse - KEEPALIVE error input_len-iOff =%d \n",
+                                        input_len - iOff);
+                            }
+                        } else if (iOff == input_len) {
+                            iOff += usPacketLen - BGP_HEADER_SIZE;
+                            break;
+                        } else {
+                            iOff += usPacketLen - BGP_HEADER_SIZE;
+                            SCLogDebug(
+                                    "BgpParse - KEEPALIVE iOff=%d input_len=%d\n", iOff, input_len);
+                        }
+                        break;
+                    case BGP_MSG_TYPE_ROUTE_REFRESH:
+                        SCLogDebug("    BgpParse - REFRESH");
+                        iOff += usPacketLen;
+                        break;
+                    case BGP_MSG_TYPE_CAPABILITY:
+                        SCLogDebug("    BgpParse -CAPABILITY");
+                        iOff += usPacketLen;
+                        break;
+                    case BGP_MSG_TYPE_ROUTE_REFRESH_CISCO:
+                        SCLogDebug("    BgpParse -ROUTE REFRESH CISCO");
+                        iOff += usPacketLen;
+                        break;
+                    default:
+                        SCLogDebug("    BgpParse - UNKNOWN");
+                        iOff += usPacketLen;
+                        break;
                 }
-                break;
-            case BGP_MSG_TYPE_NOTIFICATION:
-                printf("BgpParse - NOTIFICATION\n");
-                {
-                    BgpNotifyMsg *pNotifyMsg = (BgpNotifyMsg *)(input + 19);
-                    tx->stNotifyMsg.ucErrCode = pNotifyMsg->ucErrCode;
-                    tx->stNotifyMsg.ucErrSubCode = pNotifyMsg->ucErrSubCode;
-                    printf("    ucErrCode=%d ucErrSubCode=%d\n", pNotifyMsg->ucErrCode,
-                            pNotifyMsg->ucErrSubCode);
-                }
-                break;
-            case BGP_MSG_TYPE_KEEPALIVE:
-                printf("BgpParse - KEEPALIVE\n");
-                break;
-            case BGP_MSG_TYPE_ROUTE_REFRESH:
-                printf("BgpParse - REFRESH\n");
-                break;
-            case BGP_MSG_TYPE_CAPABILITY:
-                printf("BgpParse -CAPABILITY\n");
-                break;
-            default:
-                printf("BgpParse - type unknown\n");
-                SCReturnStruct(APP_LAYER_OK);
+                // iOff += usPacketLen;
+            } else {
+                SCReturnStruct(APP_LAYER_ERROR);
+            }
         }
     }
+    SCLogDebug("\n******************************BgpParser "
+               "end**************************************\n");
     SCReturnStruct(APP_LAYER_OK);
 }
 
@@ -741,59 +1212,58 @@ static uint16_t BgpProbingParser(
     unsigned short usPacketLen = 0;
     unsigned int iOff = 0;
 
-    SCLogNotice("\n-----------------------------BgpProbingParser begin!\n");
+    SCLogDebug("\n-----------------------------BgpProbingParser begin!\n");
     if (input_len < BGP_HEADER_SIZE) {
         SCLogNotice("BgpProbingParser length too small to be a Bgp header");
         return ALPROTO_UNKNOWN;
     }
 
     if (direction == STREAM_TOSERVER) {
-        SCLogNotice("BgpProbingParser direction=STREAM_TOSERVER\n");
+        SCLogDebug("BgpProbingParser direction=STREAM_TOSERVER\n");
     } else {
-        SCLogNotice("BgpProbingParser direction=STREAM_TOCLIENT\n");
+        SCLogDebug("BgpProbingParser direction=STREAM_TOCLIENT\n");
     }
     while (iOff < input_len) {
         pBgpHdr = (BgpHeader *)(input);
         usPacketLen = htons(pBgpHdr->usLen);
-        SCLogNotice(
-                "usPacketLen=%d pBgpHdr->usLen=%d iOff=%d\n", usPacketLen, pBgpHdr->usLen, iOff);
+        SCLogDebug("usPacketLen=%d pBgpHdr->usLen=%d iOff=%d\n", usPacketLen, pBgpHdr->usLen, iOff);
         if (usPacketLen <= input_len) {
             switch (pBgpHdr->ucType) {
                 case BGP_MSG_TYPE_OPEN:
-                    SCLogNotice("BgpParse - OPEN");
+                    SCLogDebug("BgpParse - OPEN");
                     if (input_len - iOff < BGP_MIN_OPEN_MSG_SIZE) {
                         return ALPROTO_UNKNOWN;
                     }
                     break;
                 case BGP_MSG_TYPE_UPDATE:
-                    SCLogNotice("BgpParse - UPDATE");
+                    SCLogDebug("BgpParse - UPDATE");
                     if (input_len - iOff < BGP_MIN_UPDATE_MSG_SIZE) {
                         return ALPROTO_UNKNOWN;
                     }
                     break;
                 case BGP_MSG_TYPE_NOTIFICATION:
-                    SCLogNotice("BgpParse - NOTIFICATION");
+                    SCLogDebug("BgpParse - NOTIFICATION");
                     if (input_len - iOff < BGP_MIN_NOTIFICATION_MSG_SIZE) {
                         return ALPROTO_UNKNOWN;
                     }
                     break;
                 case BGP_MSG_TYPE_KEEPALIVE:
-                    SCLogNotice("BgpParse - KEEPALIVE");
+                    SCLogDebug("BgpParse - KEEPALIVE");
                     if (input_len - iOff < BGP_MIN_KEEPALVE_MSG_SIZE) {
                         return ALPROTO_UNKNOWN;
                     }
                     break;
                 case BGP_MSG_TYPE_ROUTE_REFRESH:
-                    SCLogNotice("BgpParse - REFRESH");
+                    SCLogDebug("BgpParse - REFRESH");
                     break;
                 case BGP_MSG_TYPE_CAPABILITY:
-                    SCLogNotice("BgpParse -CAPABILITY");
+                    SCLogDebug("BgpParse -CAPABILITY");
                     break;
                 case BGP_MSG_TYPE_ROUTE_REFRESH_CISCO:
-                    SCLogNotice("BgpParse -ROUTE REFRESH CISCO");
+                    SCLogDebug("BgpParse -ROUTE REFRESH CISCO");
                     break;
                 default:
-                    SCLogNotice("BgpParse - UNKNOWN");
+                    SCLogDebug("BgpParse - UNKNOWN");
                     return ALPROTO_UNKNOWN;
             }
             iOff += usPacketLen;
@@ -865,22 +1335,22 @@ void RegisterBgpParsers()
             return;
 
         if (RunmodeIsUnittests()) {
-            AppLayerProtoDetectPPRegister(IPPROTO_TCP, "179", ALPROTO_BGP, 0, sizeof(BgpHeader),
-                    STREAM_TOSERVER, BgpProbingParser, NULL);
+            AppLayerProtoDetectPPRegister(IPPROTO_TCP, BGP_TCP_PORT, ALPROTO_BGP, 0,
+                    sizeof(BgpHeader), STREAM_TOSERVER, BgpProbingParser, NULL);
 
-            AppLayerProtoDetectPPRegister(IPPROTO_TCP, "179", ALPROTO_BGP, 0, sizeof(BgpHeader),
-                    STREAM_TOCLIENT, BgpProbingParser, NULL);
+            AppLayerProtoDetectPPRegister(IPPROTO_TCP, BGP_TCP_PORT, ALPROTO_BGP, 0,
+                    sizeof(BgpHeader), STREAM_TOCLIENT, BgpProbingParser, NULL);
 
         } else {
             if (!AppLayerProtoDetectPPParseConfPorts("TCP", IPPROTO_TCP, proto_name, ALPROTO_BGP, 0,
                         sizeof(BgpHeader), BgpProbingParser, BgpProbingParser)) {
                 SCLogNotice("no BGP TCP config found enabling BGP detection on port 179.");
 
-                AppLayerProtoDetectPPRegister(IPPROTO_TCP, "179", ALPROTO_BGP, 0, sizeof(BgpHeader),
-                        STREAM_TOSERVER, BgpProbingParser, NULL);
+                AppLayerProtoDetectPPRegister(IPPROTO_TCP, BGP_TCP_PORT, ALPROTO_BGP, 0,
+                        sizeof(BgpHeader), STREAM_TOSERVER, BgpProbingParser, NULL);
 
-                AppLayerProtoDetectPPRegister(IPPROTO_TCP, "179", ALPROTO_BGP, 0, sizeof(BgpHeader),
-                        STREAM_TOCLIENT, BgpProbingParser, NULL);
+                AppLayerProtoDetectPPRegister(IPPROTO_TCP, BGP_TCP_PORT, ALPROTO_BGP, 0,
+                        sizeof(BgpHeader), STREAM_TOCLIENT, BgpProbingParser, NULL);
             }
         }
 
@@ -961,6 +1431,8 @@ static int ALDecodeBgpTest(void)
 
     BgpTransaction *tx = BgpGetTx(bgp_state, 0);
     FAIL_IF_NULL(tx);
+
+    FAIL_IF(tx->header.command != 99);
 
     AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
