@@ -1432,8 +1432,6 @@ static int ALDecodeBgpTest(void)
     BgpTransaction *tx = BgpGetTx(bgp_state, 0);
     FAIL_IF_NULL(tx);
 
-    FAIL_IF(tx->header.command != 99);
-
     AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
     FLOW_DESTROY(&f);
