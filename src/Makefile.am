@@ -14,6 +14,8 @@ noinst_HEADERS = \
 	alert-debuglog.h \
 	alert-fastlog.h \
 	alert-syslog.h \
+	app-layer-bgp.h \
+	app-layer-ccsds.h \
 	app-layer-detect-proto.h \
 	app-layer-dnp3.h \
 	app-layer-dnp3-objects.h \
@@ -79,6 +81,7 @@ noinst_HEADERS = \
 	decode-ipv6.h \
 	decode-mpls.h \
 	decode-nsh.h \
+	decode-ospf.h \
 	decode-ppp.h \
 	decode-pppoe.h \
 	decode-raw.h \
@@ -408,6 +411,7 @@ noinst_HEADERS = \
 	output-json-alert.h \
 	output-json-anomaly.h \
 	output-json-bittorrent-dht.h \
+	output-json-ccsds.h \
 	output-json-dcerpc.h \
 	output-json-dhcp.h \
 	output-json-dnp3.h \
@@ -656,6 +660,8 @@ libsuricata_c_a_SOURCES = \
 	alert-fastlog.c \
 	alert-syslog.c \
 	app-layer.c \
+	app-layer-bgp.c \
+	app-layer-ccsds.c \
 	app-layer-detect-proto.c \
 	app-layer-dnp3.c \
 	app-layer-dnp3-objects.c \
@@ -718,6 +724,7 @@ libsuricata_c_a_SOURCES = \
 	decode-mpls.c \
 	decode-nsh.c \
 	decode-null.c \
+	decode-ospf.c \
 	decode-ppp.c \
 	decode-pppoe.c \
 	decode-raw.c \
@@ -1045,6 +1052,7 @@ libsuricata_c_a_SOURCES = \
 	output-json-anomaly.c \
 	output-json-bittorrent-dht.c \
 	output-json.c \
+	output-json-ccsds.c \
 	output-json-common.c \
 	output-json-dcerpc.c \
 	output-json-dhcp.c \

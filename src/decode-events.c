@@ -595,6 +595,11 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.nsh.unknown_payload",
             NSH_UNKNOWN_PAYLOAD,
     },
+    /* OSPF events */
+    {
+            "decoder.ospf.header_too_small",
+            OSPF_HEADER_TOO_SMALL,
+    },
     {
             "decoder.too_many_layers",
             GENERIC_TOO_MANY_LAYERS,

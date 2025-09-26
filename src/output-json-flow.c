@@ -448,10 +448,9 @@ static void EveFlowLogJSON(LogFlowLogThread *ft, JsonBuilder *jb, Flow *f)
 
     if (f->alproto == ALPROTO_TELNET) {
         jb_open_object(jb, "telnet");
-        void *state = f->alstate;
-        if (state) {
-            jb_set_string(jb, "username", rs_telnet_state_get_username(state));
-            jb_set_string(jb, "password", rs_telnet_state_get_password(state));
+        if (f->alstate) {
+            jb_set_string(jb, "username", rs_telnet_state_get_username(f->alstate));
+            jb_set_string(jb, "password", rs_telnet_state_get_password(f->alstate));
         }
         jb_close(jb);
     }
