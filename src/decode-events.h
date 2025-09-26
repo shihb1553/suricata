@@ -223,6 +223,9 @@ enum {
     NSH_UNSUPPORTED_TYPE,
     NSH_UNKNOWN_PAYLOAD,
 
+    /* OSPF events */
+    OSPF_HEADER_TOO_SMALL,
+
     /* generic events */
     GENERIC_TOO_MANY_LAYERS,
 
