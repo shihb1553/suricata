@@ -101,6 +101,7 @@ enum PktSrcEnum {
 #include "decode-vlan.h"
 #include "decode-mpls.h"
 #include "decode-ospf.h"
+#include "decode-igmp.h"
 
 
 /* forward declarations */
@@ -580,6 +581,7 @@ typedef struct Packet_
     GREHdr *greh;
 
     OSPFHdrBase *ospf;
+    IGMPHdrBase *igmp;
 
     /* ptr to the payload of the packet
      * with it's length. */
@@ -727,6 +729,7 @@ typedef struct DecodeThreadVars_
     uint16_t counter_erspan;
     uint16_t counter_nsh;
     uint16_t counter_ospf;
+    uint16_t counter_igmp;
 
     /** frag stats - defrag runs in the context of the decoder. */
     uint16_t counter_defrag_ipv4_fragments;
@@ -759,7 +762,6 @@ typedef struct DecodeThreadVars_
     uint16_t counter_flow_spare_sync_avg;
 
     uint16_t counter_engine_events[DECODE_EVENT_MAX];
-
     /* thread data for flow logging api: only used at forced
      * flow recycle during lookups */
     void *output_flow_thread_data;
@@ -883,6 +885,9 @@ int DecodeGtp(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint3
 int DecodeTEMPLATE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeNSH(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeOSPF(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+
+int DecodeOSPF(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *pkt, uint32_t len);
+int DecodeIGMP(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *pkt, uint32_t len);
 
 #ifdef UNITTESTS
 void DecodeIPV6FragHeader(Packet *p, const uint8_t *pkt,
