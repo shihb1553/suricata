@@ -592,6 +592,10 @@ const struct DecodeEvents_ DEvents[] = {
             NSH_UNSUPPORTED_TYPE,
     },
     {
+            "decoder.nsh.unknown_payload",
+            NSH_UNKNOWN_PAYLOAD,
+    },
+    {
             "decoder.ospf.header_too_small",
             OSPF_HEADER_TOO_SMALL,
     },
@@ -610,10 +614,6 @@ const struct DecodeEvents_ DEvents[] = {
     {
             "decoder.igmp.msg_length_too_small",
             IGMP_MSG_LEN_TOO_SMALL,
-    },
-    {
-            "decoder.nsh.unknown_payload",
-            NSH_UNKNOWN_PAYLOAD,
     },
     {
             "decoder.too_many_layers",
