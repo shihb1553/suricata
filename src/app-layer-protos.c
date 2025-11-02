@@ -67,8 +67,8 @@ const AppProtoStringTuple AppProtoStrings[ALPROTO_MAX] = {
     { ALPROTO_BITTORRENT_DHT, "bittorrent-dht" },
     { ALPROTO_HTTP, "http" },
 
-    { ALPROTO_MMSE, "mmse" },
     { ALPROTO_WAP2, "wap2" },
+    { ALPROTO_MMSE, "mmse" },
 
     { ALPROTO_CCSDS, "ccsds" },
     { ALPROTO_BGP, "bgp" },
