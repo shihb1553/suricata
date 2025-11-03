@@ -509,7 +509,7 @@ static void HtpStateSetTypeByHeader(htp_tx_data_t *d, HtpState *hstate, int dire
                     hstate->c_type = TYPE_WAP2;
                 }
             } else {
-                SCLogInfo("It isn't a WAP/MMS message");
+                SCLogDebug("It isn't a WAP/MMS message");
                 hstate->c_type = TYPE_OTHERS;
             }
         }
