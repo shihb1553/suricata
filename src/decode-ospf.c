@@ -430,7 +430,11 @@ int DecodeOSPF(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *
         CLEAR_OSPF_PACKET(p);
         return TM_ECODE_FAILED;
     }
+
     p->proto = IPPROTO_OSPF;
+    p->payload = (uint8_t *)pkt;
+    p->payload_len = (uint16_t)len;
+
     FlowSetupPacket(p);
     return TM_ECODE_OK;
 }

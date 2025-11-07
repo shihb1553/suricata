@@ -82,6 +82,9 @@ int DetectProtoParse(DetectProto *dp, const char *str)
     } else if (strcasecmp(str, "sctp") == 0) {
         dp->proto[IPPROTO_SCTP / 8] |= 1 << (IPPROTO_SCTP % 8);
         SCLogDebug("SCTP protocol detected");
+    } else if (strcasecmp(str, "ospf") == 0) {
+        dp->proto[IPPROTO_OSPF / 8] |= 1 << (IPPROTO_OSPF % 8);
+        SCLogDebug("OSPF protocol detected");
     } else if (strcasecmp(str,"ipv4") == 0 ||
                strcasecmp(str,"ip4") == 0 ) {
         dp->flags |= (DETECT_PROTO_IPV4 | DETECT_PROTO_ANY);
@@ -408,4 +411,3 @@ void DetectProtoTests(void)
     UtRegisterTest("DetectProtoTestSig01", DetectProtoTestSig01);
 #endif /* UNITTESTS */
 }
-
