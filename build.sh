@@ -5,7 +5,7 @@
 # bash autogen.sh
 
 CFLAGS="-g -O0 -Wall -Wextra -Werror -Wshadow -Wno-unused-parameter -Wno-unused-function"
-# CFLAGS=" -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address"
+# CFLAGS+=" -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address"
 
 LDFLAGS=""
 # detect keyword export function

@@ -46,6 +46,8 @@
 #include <sys/un.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/epoll.h>
+#include <errno.h>
 
 #include "output.h"
 #include "output-json.h"
@@ -91,8 +93,8 @@ typedef struct UnixClient_ {
 typedef struct UnixCommand_ {
     time_t start_timestamp;
     int socket;
+    int epoll_fd;
     struct sockaddr_un client_addr;
-    int select_max;
     TAILQ_HEAD(, Command_) commands;
     TAILQ_HEAD(, Task_) tasks;
     TAILQ_HEAD(, UnixClient_) clients;
@@ -114,7 +116,6 @@ static int UnixNew(UnixCommand * this)
 
     this->start_timestamp = time(NULL);
     this->socket = -1;
-    this->select_max = 0;
 
     TAILQ_INIT(&this->commands);
     TAILQ_INIT(&this->tasks);
@@ -170,7 +171,6 @@ static int UnixNew(UnixCommand * this)
                 "Unix Socket: unable to create UNIX socket %s: %s", addr.sun_path, strerror(errno));
         return 0;
     }
-    this->select_max = this->socket + 1;
 
     /* set reuse option */
     ret = setsockopt(this->socket, SOL_SOCKET, SO_REUSEADDR,
@@ -202,24 +202,25 @@ static int UnixNew(UnixCommand * this)
         SCLogWarning("Command server: UNIX socket listen() error: %s", strerror(errno));
         return 0;
     }
+
+    // 创建epoll实例
+    this->epoll_fd = epoll_create1(0);
+    if (this->epoll_fd == -1) {
+        SCLogWarning("epoll_create1");
+        return 0;
+    }
+
+    struct epoll_event event;
+    event.events = EPOLLIN;  // 监听读事件
+    event.data.fd = this->socket;  // 保存fd信息
+
+    if (epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, this->socket, &event) == -1) {
+        perror("epoll_ctl: EPOLL_CTL_ADD");
+        close(this->epoll_fd);
+        return 0;
+    }
+
     return 1;
-}
-
-static void UnixCommandSetMaxFD(UnixCommand *this)
-{
-    UnixClient *item;
-
-    if (this == NULL) {
-        SCLogError("Unix command is NULL, warn devel");
-        return;
-    }
-
-    this->select_max = this->socket + 1;
-    TAILQ_FOREACH(item, &this->clients, next) {
-        if (item->fd >= this->select_max) {
-            this->select_max = item->fd + 1;
-        }
-    }
 }
 
 static UnixClient *UnixClientAlloc(void)
@@ -270,7 +271,6 @@ static void UnixCommandClose(UnixCommand  *this, int fd)
     TAILQ_REMOVE(&this->clients, item, next);
 
     close(item->fd);
-    UnixCommandSetMaxFD(this);
     UnixClientFree(item);
 }
 
@@ -431,7 +431,17 @@ static int UnixCommandAccept(UnixCommand *this)
     /* client connected */
     SCLogDebug("Unix socket: client connected");
     TAILQ_INSERT_TAIL(&this->clients, uclient, next);
-    UnixCommandSetMaxFD(this);
+
+    struct epoll_event event;
+    event.events = EPOLLIN;  // 监听读事件
+    event.data.fd = client;  // 保存fd信息
+
+    if (epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, client, &event) == -1) {
+        perror("epoll_ctl: EPOLL_CTL_ADD");
+        close(this->epoll_fd);
+        return 0;
+    }
+
     return 1;
 }
 
@@ -558,58 +568,31 @@ static void UnixCommandRun(UnixCommand * this, UnixClient *client)
         }
         buffer[ret] = 0;
     } else {
-        int try = 0;
         int offset = 0;
         int cmd_over = 0;
         ret = recv(client->fd, buffer + offset, sizeof(buffer) - offset - 1, 0);
-        do {
-            if (ret <= 0) {
-                if (ret == 0) {
-                    SCLogDebug("Unix socket: lost connection with client");
-                } else {
-                    SCLogError("Unix socket: error on recv() from client: %s", strerror(errno));
-                }
-                UnixCommandClose(this, client->fd);
-                return;
-            }
-            if (ret >= (int)(sizeof(buffer)- offset - 1)) {
-                SCLogInfo("Command server: client command is too long, "
-                        "disconnect him.");
-                UnixCommandClose(this, client->fd);
-                return;
-            }
-            if (buffer[ret - 1] == '\n') {
-                buffer[ret-1] = 0;
-                cmd_over = 1;
-            } else {
-                struct timeval tv;
-                fd_set select_set;
-                offset += ret;
-                do {
-                    FD_ZERO(&select_set);
-                    FD_SET(client->fd, &select_set);
-                    tv.tv_sec = 0;
-                    tv.tv_usec = 200 * 1000;
-                    try++;
-                    ret = select(client->fd, &select_set, NULL, NULL, &tv);
-                    /* catch select() error */
-                    if (ret == -1) {
-                        /* Signal was caught: just ignore it */
-                        if (errno != EINTR) {
-                            SCLogInfo("Unix socket: lost connection with client");
-                            UnixCommandClose(this, client->fd);
-                            return;
-                        }
-                    }
-                } while (ret == 0 && try < 3);
-                if (ret > 0) {
-                    ret = recv(client->fd, buffer + offset,
-                               sizeof(buffer) - offset - 1, 0);
-                }
-            }
-        } while (try < 3 && cmd_over == 0);
 
-        if (try == 3 && cmd_over == 0) {
+        if (ret <= 0) {
+            if (ret == 0) {
+                SCLogDebug("Unix socket: lost connection with client");
+            } else {
+                SCLogError("Unix socket: error on recv() from client: %s", strerror(errno));
+            }
+            UnixCommandClose(this, client->fd);
+            return;
+        }
+        if (ret >= (int)(sizeof(buffer)- offset - 1)) {
+            SCLogInfo("Command server: client command is too long, "
+                    "disconnect him.");
+            UnixCommandClose(this, client->fd);
+            return;
+        }
+        if (buffer[ret - 1] == '\n') {
+            buffer[ret-1] = 0;
+            cmd_over = 1;
+        }
+
+        if (cmd_over == 0) {
             SCLogInfo("Unix socket: incomplete client message, closing connection");
             UnixCommandClose(this, client->fd);
             return;
@@ -625,9 +608,7 @@ static void UnixCommandRun(UnixCommand * this, UnixClient *client)
  */
 static int UnixMain(UnixCommand * this)
 {
-    struct timeval tv;
     int ret;
-    fd_set select_set;
     UnixClient *uclient;
     UnixClient *tclient;
 
@@ -638,24 +619,16 @@ static int UnixMain(UnixCommand * this)
         return 1;
     }
 
-    /* Wait activity on the socket */
-    FD_ZERO(&select_set);
-    FD_SET(this->socket, &select_set);
-    TAILQ_FOREACH(uclient, &this->clients, next) {
-        FD_SET(uclient->fd, &select_set);
-    }
+    #define MAX_EVENTS 64
+    struct epoll_event events[MAX_EVENTS];
+    ret = epoll_wait(this->epoll_fd, events, MAX_EVENTS, 200);
 
-    tv.tv_sec = 0;
-    tv.tv_usec = 200 * 1000;
-    ret = select(this->select_max, &select_set, NULL, NULL, &tv);
-
-    /* catch select() error */
     if (ret == -1) {
         /* Signal was caught: just ignore it */
-        if (errno == EINTR) {
-            return 1;
-        }
-        SCLogError("Command server: select() fatal error: %s", strerror(errno));
+        // if (errno == EINTR) {
+        //     return 1;
+        // }
+        SCLogError("Command server: epoll_wait() fatal error: %s", strerror(errno));
         return 0;
     }
 
@@ -664,14 +637,32 @@ static int UnixMain(UnixCommand * this)
         return 1;
     }
 
-    TAILQ_FOREACH_SAFE(uclient, &this->clients, next, tclient) {
-        if (FD_ISSET(uclient->fd, &select_set)) {
-            UnixCommandRun(this, uclient);
+    for (int i = 0; i < ret; i++) {
+        if (events[i].events & EPOLLIN) {
+            int fd = events[i].data.fd;
+            // 处理读事件 - 直接使用就绪的fd
+            if (fd == this->socket) {
+                // 处理新连接
+                if (!UnixCommandAccept(this))
+                    return 1;
+            } else {
+                // 处理已有连接的数据
+                TAILQ_FOREACH_SAFE(uclient, &this->clients, next, tclient) {
+                    if (fd == uclient->fd) {
+                        UnixCommandRun(this, uclient);
+                    }
+                }
+
+            }
         }
-    }
-    if (FD_ISSET(this->socket, &select_set)) {
-        if (!UnixCommandAccept(this))
-            return 1;
+        if (events[i].events & EPOLLOUT) {
+            // 处理写事件
+            SCLogNotice("EPOLLOUT");
+        }
+        if (events[i].events & (EPOLLERR | EPOLLHUP)) {
+            // 处理错误或挂起事件
+            SCLogNotice("EPOLLERR | EPOLLHUP");
+        }
     }
 
     return 1;
@@ -970,7 +961,7 @@ static UnixCommand command;
  *
  * This function adds a command to the list of commands available
  * through the unix socket.
- * 
+ *
  * When a command is received from user through the unix socket, the content
  * of 'Command' field in the JSON message is match against keyword, then the
  * Func is called. See UnixSocketAddPcapFile() for an example.
@@ -1030,8 +1021,8 @@ TmEcode UnixManagerRegisterCommand(const char * keyword,
  * \brief Add a task to the list of tasks
  *
  * This function adds a task to run in the background. The task is run
- * each time the UnixMain() function exits from select.
- * 
+ * each time the UnixMain() function.
+ *
  * \param Func function to run when a command is received
  * \param data a pointer to data that are passed to Func when it is run
  * \retval TM_ECODE_OK in case of success, TM_ECODE_FAILED in case of failure
