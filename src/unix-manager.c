@@ -625,9 +625,9 @@ static int UnixMain(UnixCommand * this)
 
     if (ret == -1) {
         /* Signal was caught: just ignore it */
-        // if (errno == EINTR) {
-        //     return 1;
-        // }
+        if (errno == EINTR) {
+            return 1;
+        }
         SCLogError("Command server: epoll_wait() fatal error: %s", strerror(errno));
         return 0;
     }
@@ -638,8 +638,8 @@ static int UnixMain(UnixCommand * this)
     }
 
     for (int i = 0; i < ret; i++) {
+        int fd = events[i].data.fd;
         if (events[i].events & EPOLLIN) {
-            int fd = events[i].data.fd;
             // 处理读事件 - 直接使用就绪的fd
             if (fd == this->socket) {
                 // 处理新连接
@@ -661,7 +661,9 @@ static int UnixMain(UnixCommand * this)
         }
         if (events[i].events & (EPOLLERR | EPOLLHUP)) {
             // 处理错误或挂起事件
-            SCLogNotice("EPOLLERR | EPOLLHUP");
+            SCLogNotice("EPOLLERR | EPOLLHUP: %u %d", events[i].events, fd);
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+            close(fd);
         }
     }
 
