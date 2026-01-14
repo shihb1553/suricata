@@ -220,19 +220,19 @@
     AC_CHECK_DECL([getrandom],
         AC_DEFINE([HAVE_GETRANDOM], [1], [Use getrandom]),
         [], [
-            #include <sys/random.h> 
+            #include <sys/random.h>
             ])
     AC_CHECK_DECL([_popcnt64],
         AC_DEFINE([HAVE_POPCNT64], [1], [Use _popcnt64]),
         [], [
-            #include <x86intrin.h> 
+            #include <x86intrin.h>
             ])
 
     AC_CHECK_HEADERS([malloc.h])
     AC_CHECK_DECL([malloc_trim],
         AC_DEFINE([HAVE_MALLOC_TRIM], [1], [Use malloc_trim]),
         [], [
-            #include <malloc.h> 
+            #include <malloc.h>
             ])
 
     OCFLAGS=$CFLAGS
@@ -477,7 +477,7 @@
     ])
     AM_CONDITIONAL([BUILD_UNITTESTS], [test "x$enable_unittests" = "xyes"])
 
-  # enable the building of ebpf files 
+  # enable the building of ebpf files
     AC_ARG_ENABLE(ebpf-build,
            AS_HELP_STRING([--enable-ebpf-build], [Enable compilation of ebpf files]),[enable_ebpf_build=$enableval],[enable_ebpf_build=no])
     AM_CONDITIONAL([BUILD_EBPF], [test "x$enable_ebpf_build" = "xyes"])
@@ -1059,7 +1059,7 @@
     AC_ARG_ENABLE(windivert,
         AS_HELP_STRING([--enable-windivert],[Enable WinDivert support [default=no]]),[enable_windivert=$enableval],
         [enable_windivert="no"])
-    
+
   # WinDivert can only be enabled on Windows builds
     AC_CHECK_DECL([OS_WIN32],,[enable_windivert="no"])
 
@@ -2326,6 +2326,46 @@ fi
         ndpi_comment="#"
     fi
     AC_SUBST([ndpi_comment])
+
+# ZeroMQ
+    AC_ARG_ENABLE(zmq,
+                AS_HELP_STRING([--enable-zmq],[Enable ZeroMQ support]),
+                [ enable_zmq=$enableval ],
+                [ enable_zmq=yes])
+    AS_IF([test "x$enable_zmq" = "xyes"], [
+        if test "x$enable_shared" = "xno"; then
+            echo
+            echo "   ERROR! zmq cannot be enabled with --disable-shared"
+            echo
+            exit 1
+        fi
+
+        if test "$enable_zmq" = "yes"; then
+            AC_CHECK_HEADER(czmq.h,CZMQ="yes",CZMQ="no")
+            if test "$CZMQ" != "no"; then
+                CZMQ=""
+                AC_CHECK_LIB(czmq, zsock_new_pull, CZMQ="yes", CZMQ="no")
+            fi
+
+            if test "$CZMQ" = "no"; then
+                echo
+                echo "  ERROR! libczmq library not found"
+                echo
+                exit 1
+            fi
+
+            LIBS="${LIBS} -lczmq"
+        fi
+    ])
+
+    if test "x$enable_zmq" = "xyes"; then
+        AM_CONDITIONAL([BUILD_ZMQ], [true])
+        zmq_comment=""
+    else
+        AM_CONDITIONAL([BUILD_ZMQ], [false])
+        zmq_comment="#"
+    fi
+    AC_SUBST([zmq_comment])
 
     AC_ARG_ENABLE(warnings,
            AS_HELP_STRING([--enable-warnings], [Enable supported C compiler warnings]),[enable_warnings=$enableval],[enable_warnings=no])
