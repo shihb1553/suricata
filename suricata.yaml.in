@@ -66,7 +66,7 @@ stats:
   enabled: yes
   # The interval field (in seconds) controls the interval at
   # which stats are updated in the log.
-  interval: 8
+  interval: 64
   # Add decode events to stats.
   #decoder-events: true
   # Decoder event prefix in stats. Has been 'decoder' before, but that leads
@@ -89,7 +89,7 @@ plugins:
 outputs:
   # a line based alerts log similar to Snort's fast.log
   - fast:
-      enabled: yes
+      enabled: no
       filename: fast.log
       append: yes
       #filetype: regular # 'regular', 'unix_stream' or 'unix_dgram'
@@ -239,7 +239,7 @@ outputs:
             # By default, anomaly logging is enabled. When anomaly
             # logging is enabled, applayer anomaly reporting is
             # also enabled.
-            enabled: yes
+            enabled: no
             #
             # Choose one or more types of anomaly logging and whether to enable
             # logging of the packet header for packet anomalies.
@@ -248,131 +248,13 @@ outputs:
               # stream: no
               # applayer: yes
             #packethdr: no
-        - http:
-            extended: yes     # enable this for extended logging information
-            # custom allows additional HTTP fields to be included in eve-log.
-            # the example below adds three additional fields when uncommented
-            #custom: [Accept-Encoding, Accept-Language, Authorization]
-            # set this value to one and only one from {both, request, response}
-            # to dump all HTTP headers for every HTTP request and/or response
-            # dump-all-headers: none
-        - dns:
-            # Suricata 8.0 uses a new DNS logging format, to keep with
-            # the old format while you upgrade the version can be set
-            # to 2. See https://docs.suricata.io/en/latest/upgrade/8.0-dns-logging-changes.html
-            #version: 3
-
-            # Enable/disable this logger. Default: enabled.
-            #enabled: yes
-
-            # Control logging of requests and responses:
-            # - requests: enable logging of DNS queries
-            # - responses: enable logging of DNS answers
-            # By default both requests and responses are logged.
-            #requests: no
-            #responses: no
-
-            # Format of answer logging:
-            # - detailed: array item per answer
-            # - grouped: answers aggregated by type
-            # Default: all
-            #formats: [detailed, grouped]
-
-            # DNS record types to log, based on the query type.
-            # Default: all.
-            #types: [a, aaaa, cname, mx, ns, ptr, txt]
-        - mdns:
-        - tls:
-            extended: yes     # enable this for extended logging information
-            # output TLS transaction where the session is resumed using a
-            # session id
-            #session-resumption: no
-            # custom controls which TLS fields that are included in eve-log
-            # WARNING: enabling custom disables extended logging.
-            #custom: [subject, issuer, session_resumed, serial, fingerprint, sni, version, not_before, not_after, certificate, chain, ja3, ja3s, ja4, subjectaltname, client, client_certificate, client_chain, client_alpns, server_alpns, client_handshake, server_handshake]
-        - files:
-            force-magic: no   # force logging magic on all logged files
-            # force logging of checksums, available hash functions are md5,
-            # sha1 and sha256
-            #force-hash: [md5]
-        #- drop:
-        #    alerts: yes      # log alerts that caused drops
-        #    flows: all       # start or all: 'start' logs only a single drop
-        #                     # per flow direction. All logs each dropped pkt.
-            # Enable logging the final action taken on a packet by the engine
-            # (will show more information in case of a drop caused by 'reject')
-            # verdict: yes
-        - smtp:
-            #extended: yes # enable this for extended logging information
-            # this includes: bcc, message-id, subject, x_mailer, user-agent
-            # custom fields logging from the list:
-            #  reply-to, bcc, message-id, subject, x-mailer, user-agent, received,
-            #  x-originating-ip, in-reply-to, references, importance, priority,
-            #  sensitivity, organization, content-md5, date
-            #custom: [received, x-mailer, x-originating-ip, relays, reply-to, bcc]
-            # output md5 of fields: body, subject
-            # for the body you need to set app-layer.protocols.smtp.mime.body-md5
-            # to yes
-            #md5: [body, subject]
-
-        #- dnp3
-        - websocket
-        #- enip
-        - ftp
-        - rdp
-        - nfs
-        - smb:
-            # restrict to only certain types in the following list
-            #types: [file, tree_connect, negotiate, dcerpc, create,
-            #  session_setup, ioctl, rename, set_file_path_info, generic]
-        - tftp
-        - ike
-        - dcerpc
-        - krb5
-        - bittorrent-dht
-        - snmp
-        - rfb
-        - sip
-        - quic
-        - ldap
-        - pop3
-        - arp:
-            enabled: no        # Many events can be logged. Disabled by default
-        - dhcp:
-            enabled: yes
-            # When extended mode is on, all DHCP messages are logged
-            # with full detail. When extended mode is off (the
-            # default), just enough information to map a MAC address
-            # to an IP address is logged.
-            extended: no
-        - ssh
-        - mqtt:
-            # passwords: yes           # enable output of passwords
-            # string-log-limit: 1KiB   # limit size of logged strings in bytes.
-                                       # Can be specified in KiB, MiB, GiB. Just a number
-                                       # is parsed as bytes. Default is 1 KiB.
-                                       # Use a value of 0 to disable limiting.
-                                       # Note that the size is also bounded by
-                                       # the maximum parsed message size (see
-                                       # app-layer configuration)
-        - http2
-        # dns over http2
-        - doh2
-        - pgsql:
-            enabled: no
-            # passwords: yes           # enable output of passwords. Disabled by default
-                                       # If a password message is seen but this setting
-                                       # is disabled, "password_redacted": true is logged
         - stats:
+            enabled: no
             totals: yes       # stats for all threads merged together
             threads: no       # per thread stats
             deltas: no        # include delta values
             # Don't log stats counters that are zero. Default: true
             #null-values: false    # False will NOT log stats counters: 0
-        # bi-directional flows
-        - flow
-        # uni-directional flows
-        #- netflow
 
         # Metadata event type. Triggered whenever a pktvar is saved
         # and will include the pktvars, flowvars, flowbits and
@@ -420,8 +302,8 @@ outputs:
   # - encrypted streams after the key exchange
   #
   - pcap-log:
-      enabled: no
-      filename: log.pcap
+      enabled: yes
+      filename: log.%n.%t.pcap
 
       # File size limit.  Can be specified in kb, mb, gb.  Just a number
       # is parsed as bytes.
@@ -441,7 +323,7 @@ outputs:
       #lz4-checksum: no
       #lz4-level: 0
 
-      mode: normal # normal or multi
+      mode: multi # normal or multi
 
       # Directory to place pcap files. If not provided the default log
       # directory will be used.
@@ -452,7 +334,7 @@ outputs:
       honor-pass-rules: no # If set to "yes", flows in which a pass rule matched will stop being logged.
       # Use "all" to log all packets or use "alerts" to log only alerted packets and flows or "tag"
       # to log only flow tagged via the "tag" keyword
-      #conditional: all
+      conditional: alerts
 
       # A BPF filter that will be applied to all packets being
       # logged. If set, packets must match this filter otherwise they
@@ -805,7 +687,7 @@ dpdk:
       # - auto takes all cores
       # in IPS mode it is required to specify the number of cores and the numbers on both interfaces must match
       threads: auto
-      # interrupt-mode: false # true to switch to interrupt mode 
+      # interrupt-mode: false # true to switch to interrupt mode
       promisc: true # promiscuous mode - capture all packets
       multicast: true # enables also detection on multicast packets
       checksum-checks: true # if Suricata should validate checksums
@@ -970,7 +852,7 @@ app-layer:
       #encryption-handling: track-only
 
     pgsql:
-      enabled: no
+      enabled: yes
       # Stream reassembly size for PostgreSQL. By default, track it completely.
       stream-depth: 0
       # Maximum number of live PostgreSQL transactions per flow
@@ -985,12 +867,12 @@ app-layer:
       enabled: yes
       # memcap: 64 MiB
     websocket:
-      #enabled: yes
+      enabled: yes
       # Maximum used payload size, the rest is skipped
       # Also applies as a maximum for uncompressed data
       # max-payload-size: 64 KiB
     rdp:
-      #enabled: yes
+      enabled: yes
     ssh:
       enabled: yes
       # hassh: no
@@ -1051,7 +933,7 @@ app-layer:
         content-inspect-min-size: 32768
         content-inspect-window: 4096
     imap:
-      enabled: detection-only
+      enabled: yes
     pop3:
       enabled: yes
       detection-ports:
@@ -1214,7 +1096,7 @@ app-layer:
       # If the limit is reached, the app-layer-event:modbus.flooded; will match.
       #request-flood: 500
 
-      enabled: no
+      enabled: yes
       detection-ports:
         dp: 502
       # According to MODBUS Messaging on TCP/IP Implementation Guide V1.0b, it
@@ -1228,7 +1110,7 @@ app-layer:
 
     # DNP3
     dnp3:
-      enabled: no
+      enabled: yes
       detection-ports:
         dp: 20000
       #max-tx: 32
@@ -1237,7 +1119,7 @@ app-layer:
 
     # SCADA EtherNet/IP and CIP protocol support
     enip:
-      enabled: no
+      enabled: yes
       detection-ports:
         dp: 44818
         sp: 44818
@@ -1252,7 +1134,7 @@ app-layer:
       enabled: yes
 
     sip:
-      #enabled: yes
+      enabled: yes
 
     ldap:
       tcp:
@@ -1373,8 +1255,8 @@ coredump:
 # This feature is currently only used by the reject* keywords.
 host-mode: auto
 
-# Number of packets preallocated per thread. The default is 1024. A higher number 
-# will make sure each CPU will be more easily kept busy, but may negatively 
+# Number of packets preallocated per thread. The default is 1024. A higher number
+# will make sure each CPU will be more easily kept busy, but may negatively
 # impact caching.
 #max-pending-packets: 1024
 

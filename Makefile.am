@@ -30,10 +30,10 @@ install-full:
 
 install-conf:
 	install -d "$(DESTDIR)$(e_sysconfdir)"
-	@test -e "$(DESTDIR)$(e_sysconfdir)/suricata.yaml" || install -m 600 "$(top_srcdir)/suricata.yaml" "$(DESTDIR)$(e_sysconfdir)"
-	@test -e "$(DESTDIR)$(e_sysconfdir)/classification.config" || install -m 600 "$(top_srcdir)/etc/classification.config" "$(DESTDIR)$(e_sysconfdir)"
-	@test -e "$(DESTDIR)$(e_sysconfdir)/reference.config" || install -m 600 "$(top_srcdir)/etc/reference.config" "$(DESTDIR)$(e_sysconfdir)"
-	@test -e "$(DESTDIR)$(e_sysconfdir)/threshold.config" || install -m 600 "$(top_srcdir)/threshold.config" "$(DESTDIR)$(e_sysconfdir)"
+	install -m 600 "$(top_srcdir)/suricata.yaml" "$(DESTDIR)$(e_sysconfdir)"
+	install -m 600 "$(top_srcdir)/etc/classification.config" "$(DESTDIR)$(e_sysconfdir)"
+	install -m 600 "$(top_srcdir)/etc/reference.config" "$(DESTDIR)$(e_sysconfdir)"
+	install -m 600 "$(top_srcdir)/threshold.config" "$(DESTDIR)$(e_sysconfdir)"
 	install -d "$(DESTDIR)$(e_logfilesdir)"
 	install -d "$(DESTDIR)$(e_logcertsdir)"
 	install -d "$(DESTDIR)$(e_rundir)"
