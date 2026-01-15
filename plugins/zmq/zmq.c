@@ -76,6 +76,8 @@ static int ZmqInit(const SCConfNode *conf, const bool threaded, void **data)
         goto failed;
     }
 
+    zsys_handler_set(NULL);
+
     *data = context;
     return 0;
 
