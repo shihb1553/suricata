@@ -1033,7 +1033,7 @@ static TmEcode PcapLogInitRingBuffer(PcapLogData *pl)
     closedir(dir);
 
     /* For some reason file count is initialized at one, instead of 0. */
-    SCLogNotice("Ring buffer initialized with %d files.", pl->file_cnt - 1);
+    SCLogDebug("Ring buffer initialized with %d files.", pl->file_cnt - 1);
 
     return TM_ECODE_OK;
 }

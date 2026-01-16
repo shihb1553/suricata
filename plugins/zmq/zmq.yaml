@@ -1,0 +1,6 @@
+%YAML 1.1
+---
+
+address: tcp://127.0.0.1
+start-port: 55000
+verbose: false
