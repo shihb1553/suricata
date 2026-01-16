@@ -2678,6 +2678,7 @@ SURICATA_BUILD_CONF="Suricata Configuration:
 
 Plugins:
   nDPI:                                    ${enable_ndpi}
+  ZMQ:                                     ${enable_zmq}
 
 Development settings:
   Coccinelle / spatch:                     ${enable_coccinelle}
