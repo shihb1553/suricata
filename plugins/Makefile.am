@@ -11,3 +11,7 @@ endif
 if BUILD_NDPI
 SUBDIRS += ndpi
 endif
+
+if BUILD_ZMQ
+SUBDIRS += zmq
+endif
