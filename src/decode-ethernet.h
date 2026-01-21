@@ -41,6 +41,7 @@
 #define ETHERNET_TYPE_PPPOE_DISC      0x8863 /* discovery stage */
 #define ETHERNET_TYPE_PPPOE_SESS      0x8864 /* session stage */
 #define ETHERNET_TYPE_8021AD          0x88a8
+#define ETHERNET_TYPE_8021LLDP        0x88cc
 #define ETHERNET_TYPE_8021AH          0x88e7
 #define ETHERNET_TYPE_8021Q           0x8100
 #define ETHERNET_TYPE_LOOP            0x9000
@@ -50,6 +51,7 @@
                                               * Cisco Fabric Path */
 #define ETHERNET_TYPE_NSH 0x894F
 #define ETHERNET_TYPE_VNTAG 0x8926 /* 802.1Qbh */
+#define ETHERNET_TYPE_VMWARE_VS       0x9979
 
 typedef struct EthernetHdr_ {
     uint8_t eth_dst[6];
