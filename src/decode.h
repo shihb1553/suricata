@@ -1505,7 +1505,19 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
         case ETHERNET_TYPE_NSH:
             DecodeNSH(tv, dtv, p, data, len);
             break;
+        case ETHERNET_TYPE_8021LLDP:
+        case ETHERNET_TYPE_VMWARE_VS:
+            break;
         default:
+            if (proto < 0x05DC) {
+                // 802.3 Raw Ethernet, proto is length of frame
+                SCLogDebug("Ethernet Raw, length %" PRIu16 "", proto);
+                break;
+            } else if (proto >= 0x05DD && proto <= 0x05FF) {
+                // Reserved
+                SCLogDebug("Ethernet type reserved %" PRIu16 "", proto);
+                break;
+            }
             SCLogDebug("unknown ether type: %" PRIx16 "", proto);
             StatsIncr(tv, dtv->counter_ethertype_unknown);
             ENGINE_SET_EVENT(p, ETHERNET_UNKNOWN_ETHERTYPE);
