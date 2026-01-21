@@ -49,6 +49,7 @@ src/TAGS
 src/suricata
 stamp-h1
 src/build-info.h
+src/libsuricata.so.*
 test.sh
 .vscode/*
 /suricata-update/*
