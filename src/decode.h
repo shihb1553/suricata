@@ -1485,6 +1485,7 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
             DecodeIEEE8021ah(tv, dtv, p, data, len);
             break;
         case ETHERNET_TYPE_ARP:
+        case ETHERNET_TYPE_REVARP:
             DecodeARP(tv, dtv, p, data, len);
             break;
         case ETHERNET_TYPE_MPLS_UNICAST:
