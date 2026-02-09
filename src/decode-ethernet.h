@@ -49,6 +49,7 @@
 #define ETHERNET_TYPE_ERSPAN          0x88BE
 #define ETHERNET_TYPE_DCE             0x8903 /* Data center ethernet,
                                               * Cisco Fabric Path */
+#define ETHERNET_TYPE_IEEE1905        0x893a
 #define ETHERNET_TYPE_NSH 0x894F
 #define ETHERNET_TYPE_VNTAG 0x8926 /* 802.1Qbh */
 #define ETHERNET_TYPE_VMWARE_VS       0x9979

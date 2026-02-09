@@ -1508,6 +1508,7 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
             break;
         case ETHERNET_TYPE_8021LLDP:
         case ETHERNET_TYPE_VMWARE_VS:
+        case ETHERNET_TYPE_IEEE1905:
             break;
         default:
             if (proto < 0x05DC) {
