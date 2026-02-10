@@ -1787,7 +1787,3 @@ int RunModeUnixSocketIsActive(void)
 {
     return unix_socket_mode_is_running;
 }
-
-
-
-

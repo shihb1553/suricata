@@ -450,6 +450,8 @@ fn command_defs() -> Result<HashMap<String, Vec<Argument>>, serde_json::Error> {
 		"type": "string",
             },
 	],
+
+      "flow-clear": [],
     });
     serde_json::from_value(defs)
 }

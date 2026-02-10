@@ -1313,3 +1313,14 @@ void TmModuleFlowRecyclerRegister (void)
     SC_ATOMIC_INIT(flowrec_cnt);
     SC_ATOMIC_INIT(flowrec_busy);
 }
+
+
+#ifdef BUILD_UNIX_SOCKET
+TmEcode UnixSocketFlowClear(json_t *cmd, json_t *answer, void *data)
+{
+    SCEnter();
+    json_object_set_new(answer, "message", json_integer(FlowCleanupHash()));
+    SCReturnInt(TM_ECODE_OK);
+}
+
+#endif

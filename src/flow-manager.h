@@ -37,4 +37,9 @@ void FlowDisableFlowRecyclerThread(void);
 void TmModuleFlowManagerRegister (void);
 void TmModuleFlowRecyclerRegister (void);
 
+#ifdef BUILD_UNIX_SOCKET
+TmEcode UnixSocketFlowClear(json_t *cmd, json_t *answer, void *data);
+
+#endif
+
 #endif /* SURICATA_FLOW_MANAGER_H */

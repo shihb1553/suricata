@@ -28,6 +28,7 @@
 #include "tm-threads.h"
 #include "runmodes.h"
 #include "conf.h"
+#include "flow-manager.h"
 #include "runmode-unix-socket.h"
 
 #include "output-json-stats.h"
@@ -970,7 +971,7 @@ static UnixCommand command;
  *
  * This function adds a command to the list of commands available
  * through the unix socket.
- * 
+ *
  * When a command is received from user through the unix socket, the content
  * of 'Command' field in the JSON message is match against keyword, then the
  * Func is called. See UnixSocketAddPcapFile() for an example.
@@ -1031,7 +1032,7 @@ TmEcode UnixManagerRegisterCommand(const char * keyword,
  *
  * This function adds a task to run in the background. The task is run
  * each time the UnixMain() function exits from select.
- * 
+ *
  * \param Func function to run when a command is received
  * \param data a pointer to data that are passed to Func when it is run
  * \retval TM_ECODE_OK in case of success, TM_ECODE_FAILED in case of failure
@@ -1124,6 +1125,7 @@ int UnixManagerInit(void)
     UnixManagerRegisterCommand(
             "dataset-lookup", UnixSocketDatasetLookup, &command, UNIX_CMD_TAKE_ARGS);
 
+    UnixManagerRegisterCommand("flow-clear", UnixSocketFlowClear, NULL, 0);
     return 0;
 }
 
