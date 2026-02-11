@@ -1125,6 +1125,7 @@ int UnixManagerInit(void)
     UnixManagerRegisterCommand(
             "dataset-lookup", UnixSocketDatasetLookup, &command, UNIX_CMD_TAKE_ARGS);
 
+    UnixManagerRegisterCommand("flow-show", UnixSocketFlowShow, NULL, UNIX_CMD_TAKE_ARGS);
     UnixManagerRegisterCommand("flow-clear", UnixSocketFlowClear, NULL, 0);
     return 0;
 }
