@@ -964,6 +964,27 @@ TmEcode UnixManagerReloadRules(json_t *cmd,
 }
 #endif
 
+static TmEcode UnixSocketEngineStage(json_t *cmd, json_t *server_msg, void *data)
+{
+    SCEnter();
+    SC_ATOMIC_EXTERN(unsigned int, engine_stage);
+
+    switch (SC_ATOMIC_GET(engine_stage)) {
+        case SURICATA_INIT:
+            json_object_set_new(server_msg, "message", json_string("init"));
+            break;
+        case SURICATA_RUNTIME:
+            json_object_set_new(server_msg, "message", json_string("running"));
+            break;
+        case SURICATA_DEINIT:
+            json_object_set_new(server_msg, "message", json_string("deinit"));
+            break;
+        default:
+            json_object_set_new(server_msg, "message", json_string("unknown"));
+    }
+    SCReturnInt(TM_ECODE_OK);
+}
+
 static UnixCommand command;
 
 /**
@@ -1127,6 +1148,8 @@ int UnixManagerInit(void)
 
     UnixManagerRegisterCommand("flow-show", UnixSocketFlowShow, NULL, UNIX_CMD_TAKE_ARGS);
     UnixManagerRegisterCommand("flow-clear", UnixSocketFlowClear, NULL, 0);
+
+    UnixManagerRegisterCommand("engine-stage", UnixSocketEngineStage, NULL, 0);
     return 0;
 }
 
