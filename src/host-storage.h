@@ -40,9 +40,14 @@ void *HostAllocStorageById(Host *h, HostStorageId id);
 
 void HostFreeStorage(Host *h);
 
+void HostShowStorageById(Host *h, HostStorageId id, char *buffer, int len, int *offset);
+void HostShowStorage(Host *h, char *buffer, int len, int *offset);
+
 void RegisterHostStorageTests(void);
 
 HostStorageId HostStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *));
+HostStorageId HostStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *));
 
 #endif /* SURICATA_HOST_STORAGE_H */

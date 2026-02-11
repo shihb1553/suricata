@@ -40,9 +40,14 @@ void *IPPairAllocStorageById(IPPair *h, IPPairStorageId id);
 
 void IPPairFreeStorage(IPPair *h);
 
+void IPPairShowStorageById(IPPair *h, IPPairStorageId id, char *buffer, int len, int *offset);
+void IPPairShowStorage(IPPair *h, char *buffer, int len, int *offset);
+
 void RegisterIPPairStorageTests(void);
 
 IPPairStorageId IPPairStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *));
+IPPairStorageId IPPairStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *));
 
 #endif /* SURICATA_IPPAIR_STORAGE_H */
