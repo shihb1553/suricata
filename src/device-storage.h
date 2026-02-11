@@ -39,7 +39,12 @@ int LiveDevSetStorageById(LiveDevice *d, LiveDevStorageId id, void *ptr);
 
 void LiveDevFreeStorage(LiveDevice *d);
 
+void LiveDevShowStorageById(LiveDevice *d, LiveDevStorageId id, char *buffer, int len, int *offset);
+void LiveDevShowStorage(LiveDevice *d, char *buffer, int len, int *offset);
+
 LiveDevStorageId LiveDevStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *));
+LiveDevStorageId LiveDevStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *));
 
 #endif /* SURICATA_DEVICE_STORAGE_H */

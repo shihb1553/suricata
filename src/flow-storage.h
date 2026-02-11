@@ -41,9 +41,15 @@ void *FlowAllocStorageById(Flow *h, FlowStorageId id);
 void FlowFreeStorageById(Flow *h, FlowStorageId id);
 void FlowFreeStorage(Flow *h);
 
+void FlowShowStorageById(Flow *h, FlowStorageId id, char *buffer, int len, int *offset);
+void FlowShowStorage(Flow *h, char *buffer, int len, int *offset);
+
 void RegisterFlowStorageTests(void);
 
 FlowStorageId FlowStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *));
+
+FlowStorageId FlowStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *));
 
 #endif /* SURICATA_FLOW_STORAGE_H */

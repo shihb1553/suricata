@@ -1561,6 +1561,13 @@ TmEcode UnixSocketFlowShow(json_t *cmd, json_t *answer, void *data)
             json_object_set_new(jflow, "bytes_toclient", json_integer(f->tosrcbytecnt));
             json_object_set_new(jflow, "bytes_toserver", json_integer(f->todstbytecnt));
 
+            char buffer[1024] = {0};
+            int offset = 0;
+            FlowShowStorage(f, buffer, sizeof(buffer), &offset);
+            if (offset) {
+                json_object_set_new(jflow, "storage", json_string(buffer));
+            }
+
             FLOWLOCK_UNLOCK(f);
             flow_cnt++;
             json_array_append_new(jarray, jflow);

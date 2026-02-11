@@ -53,10 +53,29 @@ void IPPairFreeStorage(IPPair *h)
         StorageFreeAll(h->storage, STORAGE_IPPAIR);
 }
 
+void IPPairShowStorageById(IPPair *h, IPPairStorageId id, char *buffer, int len, int *offset)
+{
+    StorageShowById(h->storage, STORAGE_IPPAIR, id.id, buffer, len, offset);
+}
+
+void IPPairShowStorage(IPPair *h, char *buffer, int len, int *offset)
+{
+    if (IPPairStorageSize() > 0)
+        StorageShowAll(h->storage, STORAGE_IPPAIR, buffer, len, offset);
+}
+
 IPPairStorageId IPPairStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *))
 {
-    int id = StorageRegister(STORAGE_IPPAIR, name, size, Alloc, Free);
+    int id = StorageRegister(STORAGE_IPPAIR, name, size, Alloc, Free, NULL);
+    IPPairStorageId ippsi = { .id = id };
+    return ippsi;
+}
+
+IPPairStorageId IPPairStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *))
+{
+    int id = StorageRegister(STORAGE_IPPAIR, name, size, Alloc, Free, Show);
     IPPairStorageId ippsi = { .id = id };
     return ippsi;
 }
