@@ -1313,3 +1313,316 @@ void TmModuleFlowRecyclerRegister (void)
     SC_ATOMIC_INIT(flowrec_cnt);
     SC_ATOMIC_INIT(flowrec_busy);
 }
+
+
+#ifdef BUILD_UNIX_SOCKET
+
+#include "flow-var.h"
+#include "util-ip.h"
+#include "util-print.h"
+#include "util-proto-name.h"
+#include "util-var-name.h"
+
+#define FLOW_DUMP_MAX   512
+
+TmEcode UnixSocketFlowShow(json_t *cmd, json_t *answer, void *data)
+{
+    SCEnter();
+    int ret = TM_ECODE_FAILED;
+
+    json_t *jarg = json_object_get(cmd, "cursor");
+    if (!json_is_integer(jarg)) {
+        json_object_set_new(answer, "message", json_string("cursor is not an integer"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    uint64_t cursor = json_integer_value(jarg);
+    if (cursor >= flow_config.hash_size) {
+        json_object_set_new(answer, "message", json_string("cursor is out of range"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+
+    struct in_addr *ipv4_addr = NULL;
+    struct in6_addr *ipv6_addr = NULL;
+    FlowAddress saddr = {0}, daddr = {0}, zeroaddr = {0};
+    jarg = json_object_get(cmd, "saddr");
+    if (!json_is_string(jarg)) {
+        json_object_set_new(answer, "message", json_string("saddr is not a string"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    const char *jstr = json_string_value(jarg);
+    if (strchr(jstr, ':') == NULL) {
+        if ((ipv4_addr = ValidateIPV4Address(jstr)) == NULL) {
+            json_object_set_new(answer, "message", json_string("saddr is not a valid ipv4 address"));
+            SCReturnInt(TM_ECODE_FAILED);
+        }
+        saddr.addr_data32[0] = ipv4_addr->s_addr;
+    } else {
+        if ((ipv6_addr = ValidateIPV6Address(jstr)) == NULL) {
+            json_object_set_new(answer, "message", json_string("saddr is not a valid ipv6 address"));
+            SCReturnInt(TM_ECODE_FAILED);
+        }
+        saddr.addr_data32[0] = ipv6_addr->s6_addr32[0];
+        saddr.addr_data32[1] = ipv6_addr->s6_addr32[1];
+        saddr.addr_data32[2] = ipv6_addr->s6_addr32[2];
+        saddr.addr_data32[3] = ipv6_addr->s6_addr32[3];
+    }
+    if (ipv4_addr) {
+        SCFree(ipv4_addr);
+        ipv4_addr = NULL;
+    }
+    if (ipv6_addr) {
+        SCFree(ipv6_addr);
+        ipv6_addr = NULL;
+    }
+
+    jarg = json_object_get(cmd, "daddr");
+    if (!json_is_string(jarg)) {
+        json_object_set_new(answer, "message", json_string("daddr is not a string"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    jstr = json_string_value(jarg);
+    if (strchr(jstr, ':') == NULL) {
+        if ((ipv4_addr = ValidateIPV4Address(jstr)) == NULL) {
+            json_object_set_new(answer, "message", json_string("daddr is not a valid ipv4 address"));
+            SCReturnInt(TM_ECODE_FAILED);
+        }
+        daddr.addr_data32[0] = ipv4_addr->s_addr;
+    } else {
+        if ((ipv6_addr = ValidateIPV6Address(jstr)) == NULL) {
+            json_object_set_new(answer, "message", json_string("daddr is not a valid ipv6 address"));
+            SCReturnInt(TM_ECODE_FAILED);
+        }
+        daddr.addr_data32[0] = ipv6_addr->s6_addr32[0];
+        daddr.addr_data32[1] = ipv6_addr->s6_addr32[1];
+        daddr.addr_data32[2] = ipv6_addr->s6_addr32[2];
+        daddr.addr_data32[3] = ipv6_addr->s6_addr32[3];
+    }
+    if (ipv4_addr) {
+        SCFree(ipv4_addr);
+        ipv4_addr = NULL;
+    }
+    if (ipv6_addr) {
+        SCFree(ipv6_addr);
+        ipv6_addr = NULL;
+    }
+
+    uint8_t proto = 255;
+    jarg = json_object_get(cmd, "proto");
+    if (!json_is_string(jarg)) {
+        json_object_set_new(answer, "message", json_string("proto is not a string"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    SCGetProtoByName(json_string_value(jarg), &proto);
+
+    jarg = json_object_get(cmd, "sport");
+    if (!json_is_integer(jarg)) {
+        json_object_set_new(answer, "message", json_string("sport is not an integer"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    uint16_t sport = json_integer_value(jarg);
+
+    jarg = json_object_get(cmd, "dport");
+    if (!json_is_integer(jarg)) {
+        json_object_set_new(answer, "message", json_string("dport is not an integer"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    uint16_t dport = json_integer_value(jarg);
+
+    const char *file_path = NULL;
+    jarg = json_object_get(cmd, "file");
+    if (json_is_string(jarg)) {
+        file_path = json_string_value(jarg);
+    }
+
+    uint8_t all = 0;
+    jarg = json_object_get(cmd, "all");
+    if (json_is_integer(jarg)) {
+        all = json_integer_value(jarg);
+    }
+
+    json_t *jdata = json_object();
+    if (jdata == NULL) {
+        json_object_set_new(answer, "message", json_string("jdata is NULL"));
+        SCReturnInt(TM_ECODE_FAILED);
+    }
+    json_t *jarray = json_array();
+    if (jarray == NULL) {
+        json_object_set_new(answer, "message", json_string("jarray is NULL"));
+        goto exit;
+    }
+
+    uint32_t flow_cnt = 0;
+    uint32_t flowvar_idx = VarNameStoreLookupByName("appID", VAR_TYPE_FLOW_INT);
+
+    for (; cursor < flow_config.hash_size && (all || flow_cnt < FLOW_DUMP_MAX); cursor++) {
+        FlowBucket *fb = &flow_hash[cursor];
+        FBLOCK_LOCK(fb);
+
+        if (fb->head == NULL) {
+            FBLOCK_UNLOCK(fb);
+            continue;
+        }
+
+        char src_ip[46] = {0}, dst_ip[46] = {0};
+        Port sp, dp;
+
+        struct timeval curr_ts;
+        memset(&curr_ts, 0, sizeof(curr_ts));
+        gettimeofday(&curr_ts, NULL);
+
+        for (Flow *f = fb->head; f != NULL; f = f->next) {
+            FLOWLOCK_RDLOCK(f);
+
+            if (proto != 255 && f->proto != proto) {
+                FLOWLOCK_UNLOCK(f);
+                continue;
+            }
+
+            if ((f->flags & FLOW_DIR_REVERSED) == 0) {
+                sp = f->sp;
+                dp = f->dp;
+                if ((sport && sp != sport) || (dport && dp != dport) ||
+                        (!CMP_ADDR(&saddr, &zeroaddr) && !CMP_ADDR(&saddr, &f->src)) ||
+                        (!CMP_ADDR(&daddr, &zeroaddr) && !CMP_ADDR(&daddr, &f->dst))) {
+                    FLOWLOCK_UNLOCK(f);
+                    continue;
+                }
+                if (FLOW_IS_IPV4(f)) {
+                    PrintInet(AF_INET, (const void *)&f->src.addr_data32[0], src_ip, sizeof(src_ip));
+                    PrintInet(AF_INET, (const void *)&f->dst.addr_data32[0], dst_ip, sizeof(dst_ip));
+                } else if (FLOW_IS_IPV6(f)) {
+                    PrintInet(AF_INET6, (const void *)&f->src.addr_data32[0], src_ip, sizeof(src_ip));
+                    PrintInet(AF_INET6, (const void *)&f->dst.addr_data32[0], dst_ip, sizeof(dst_ip));
+                }
+            } else {
+                sp = f->dp;
+                dp = f->sp;
+                if ((sport && sp != sport) || (dport && dp != dport) ||
+                        (!CMP_ADDR(&saddr, &zeroaddr) && !CMP_ADDR(&saddr, &f->dst)) ||
+                        (!CMP_ADDR(&daddr, &zeroaddr) && !CMP_ADDR(&daddr, &f->src))) {
+                    FLOWLOCK_UNLOCK(f);
+                    continue;
+                }
+                if (FLOW_IS_IPV4(f)) {
+                    PrintInet(AF_INET, (const void *)&f->dst.addr_data32[0], src_ip, sizeof(src_ip));
+                    PrintInet(AF_INET, (const void *)&f->src.addr_data32[0], dst_ip, sizeof(dst_ip));
+                } else if (FLOW_IS_IPV6(f)) {
+                    PrintInet(AF_INET6, (const void *)&f->dst.addr_data32[0], src_ip, sizeof(src_ip));
+                    PrintInet(AF_INET6, (const void *)&f->src.addr_data32[0], dst_ip, sizeof(dst_ip));
+                }
+            }
+
+            json_t *jflow = json_object();
+            if (jflow == NULL) {
+                json_object_set_new(answer, "message", json_string("jflow is NULL"));
+                FLOWLOCK_UNLOCK(f);
+                FBLOCK_UNLOCK(fb);
+                goto exit;
+            }
+
+            json_object_set_new(jflow, "sip", json_string(src_ip));
+            json_object_set_new(jflow, "dip", json_string(dst_ip));
+            json_object_set_new(jflow, "sport", json_integer(sp));
+            json_object_set_new(jflow, "dport", json_integer(dp));
+            json_object_set_new(jflow, "proto", json_string(known_proto[f->proto]));
+
+            if (f->alproto) {
+                json_object_set_new(jflow, "app_proto", json_string(AppProtoToString(f->alproto)));
+            }
+            if (f->alproto_ts && f->alproto_ts != f->alproto) {
+                json_object_set_new(jflow, "app_proto_ts", json_string(AppProtoToString(f->alproto_ts)));
+            }
+            if (f->alproto_tc && f->alproto_tc != f->alproto) {
+                json_object_set_new(jflow, "app_proto_tc", json_string(AppProtoToString(f->alproto_tc)));
+            }
+            if (f->alproto_orig != f->alproto && f->alproto_orig != ALPROTO_UNKNOWN) {
+                json_object_set_new(jflow, "app_proto_orig", json_string(AppProtoToString(f->alproto_orig)));
+            }
+            if (f->alproto_expect != f->alproto && f->alproto_expect != ALPROTO_UNKNOWN) {
+                json_object_set_new(jflow, "app_proto_expected", json_string(AppProtoToString(f->alproto_expect)));
+            }
+
+            if (flowvar_idx) {
+                FlowVar *fv = FlowVarGet(f, flowvar_idx);
+                if (fv) {
+                    json_object_set_new(jflow, "appid", json_integer(fv->data.fv_int.value));
+                }
+            }
+
+            json_object_set_new(jflow, "flags", json_integer(f->flags));
+            json_object_set_new(jflow, "file_flags", json_integer(f->file_flags));
+            json_object_set_new(jflow, "end_flags", json_integer(f->flow_end_flags));
+            json_object_set_new(jflow, "state", json_integer(f->flow_state));
+            json_object_set_new(jflow, "left", json_integer(f->lastts.secs + f->timeout_policy - curr_ts.tv_sec));
+            json_object_set_new(jflow, "start", json_integer(f->startts.secs));
+            json_object_set_new(jflow, "runtime", json_integer(f->lastts.secs - f->startts.secs));
+            json_object_set_new(jflow, "pkts_toclient", json_integer(f->tosrcpktcnt));
+            json_object_set_new(jflow, "pkts_toserver", json_integer(f->todstpktcnt));
+            json_object_set_new(jflow, "bytes_toclient", json_integer(f->tosrcbytecnt));
+            json_object_set_new(jflow, "bytes_toserver", json_integer(f->todstbytecnt));
+
+            char buffer[1024] = {0};
+            int offset = 0;
+            FlowShowStorage(f, buffer, sizeof(buffer), &offset);
+            if (offset) {
+                json_object_set_new(jflow, "storage", json_string(buffer));
+            }
+
+            FLOWLOCK_UNLOCK(f);
+            flow_cnt++;
+            json_array_append_new(jarray, jflow);
+        }
+        FBLOCK_UNLOCK(fb);
+    }
+
+    if (file_path == NULL) {
+        json_object_set_new(jdata, "flows", jarray);
+    } else {
+        // write to file
+        FILE *fp = fopen(file_path, "w");
+        if (fp == NULL) {
+            json_object_set_new(answer, "message", json_string("file open failed"));
+            goto exit;
+        }
+
+        char *js_s = json_dumps(jarray, JSON_PRESERVE_ORDER|JSON_COMPACT|JSON_ESCAPE_SLASH);
+        if (unlikely(js_s == NULL)) {
+            fclose(fp);
+            json_object_set_new(answer, "message", json_string("json_dumps failed"));
+            goto exit;
+        }
+        json_object_clear(jarray);
+        json_decref(jarray);
+
+        fwrite(js_s, strlen(js_s), 1, fp);
+        free(js_s);
+        fclose(fp);
+    }
+    json_object_set_new(jdata, "count", json_integer(flow_cnt));
+    json_object_set_new(jdata, "cursor", json_integer(cursor));
+    json_object_set_new(jdata, "hash-size", json_integer(flow_config.hash_size));
+    json_object_set_new(answer, "message", jdata);
+    ret = TM_ECODE_OK;
+
+exit:
+    if (ret != TM_ECODE_OK) {
+        if (jarray != NULL) {
+            json_object_clear(jarray);
+            json_decref(jarray);
+        }
+        if (jdata != NULL) {
+            json_object_clear(jdata);
+            json_decref(jdata);
+        }
+    }
+    SCReturnInt(ret);
+}
+
+TmEcode UnixSocketFlowClear(json_t *cmd, json_t *answer, void *data)
+{
+    SCEnter();
+    json_object_set_new(answer, "message", json_integer(FlowCleanupHash()));
+    SCReturnInt(TM_ECODE_OK);
+}
+
+#endif

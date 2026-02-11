@@ -53,10 +53,29 @@ void ThreadFreeStorage(ThreadVars *tv)
         StorageFreeAll(tv->storage, storage_type);
 }
 
+void ThreadShowStorageById(ThreadVars *tv, ThreadStorageId id, char *buffer, int len, int *offset)
+{
+    StorageShowById(tv->storage, storage_type, id.id, buffer, len, offset);
+}
+
+void ThreadShowStorage(ThreadVars *tv, char *buffer, int len, int *offset)
+{
+    if (ThreadStorageSize() > 0)
+        StorageShowAll(tv->storage, storage_type, buffer, len, offset);
+}
+
 ThreadStorageId ThreadStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *))
 {
-    int id = StorageRegister(storage_type, name, size, Alloc, Free);
+    int id = StorageRegister(storage_type, name, size, Alloc, Free, NULL);
+    ThreadStorageId tsi = { .id = id };
+    return tsi;
+}
+
+ThreadStorageId ThreadStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *))
+{
+    int id = StorageRegister(storage_type, name, size, Alloc, Free, Show);
     ThreadStorageId tsi = { .id = id };
     return tsi;
 }

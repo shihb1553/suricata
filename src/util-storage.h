@@ -55,7 +55,8 @@ void StorageCleanup(void);
  *  \note if size == ptr size (so sizeof(void *)) and Alloc == NULL the API just
  *        gives the caller a ptr to store something it alloc'ed itself.
  */
-int StorageRegister(const StorageEnum type, const char *name, const unsigned int size, void *(*Alloc)(unsigned int), void (*Free)(void *));
+int StorageRegister(const StorageEnum type, const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *));
 int StorageFinalize(void);
 
 unsigned int StorageGetCnt(const StorageEnum type);
@@ -71,5 +72,8 @@ int StorageSetById(Storage *storage, const StorageEnum type, const int id, void 
 void *StorageAllocByIdPrealloc(Storage *storage, StorageEnum type, int id);
 void StorageFreeById(Storage *storage, const StorageEnum type, const int id);
 void StorageFreeAll(Storage *storage, const StorageEnum type);
+
+void StorageShowById(Storage *storage, const StorageEnum type, const int id, char *buffer, int len, int *offset);
+void StorageShowAll(Storage *storage, const StorageEnum type, char *buffer, int len, int *offset);
 
 #endif
