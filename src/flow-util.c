@@ -237,10 +237,24 @@ static void FlowBypassFree(void *x)
     SCFree(fb);
 }
 
+static void FlowBypassShow(void *x, char *buffer, int len, int *offset)
+{
+    FlowBypassInfo *fb = (FlowBypassInfo *) x;
+
+    if (fb == NULL)
+        return;
+
+    *offset += snprintf(buffer + *offset, len - *offset,
+                    "Update: 0x%p, Free: 0x%p, Data: 0x%p, tosrcpkt: %lu,"
+                    "todstpkt: %lu, tosrcbyte: %lu, todstbyte: %lu",
+                    fb->BypassUpdate, fb->BypassFree, fb->bypass_data,
+                    fb->tosrcpktcnt, fb->todstpktcnt, fb->tosrcbytecnt, fb->todstbytecnt);
+}
+
 void RegisterFlowBypassInfo(void)
 {
-    g_bypass_info_id = FlowStorageRegister("bypass_counters", sizeof(void *),
-                                              NULL, FlowBypassFree);
+    g_bypass_info_id = FlowStorageRegisterWithShow("bypass_counters", sizeof(void *),
+                            NULL, FlowBypassFree, FlowBypassShow);
 }
 
 void FlowEndCountersRegister(ThreadVars *t, FlowEndCounters *fec)

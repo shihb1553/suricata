@@ -450,6 +450,50 @@ fn command_defs() -> Result<HashMap<String, Vec<Argument>>, serde_json::Error> {
 		"type": "string",
             },
 	],
+      "flow-show": [
+            {
+		"name": "cursor",
+		"type": "number",
+		"required": false,
+            },
+            {
+		"name": "saddr",
+		"type": "string",
+		"required": false,
+            },
+            {
+		"name": "daddr",
+		"type": "string",
+		"required": false,
+            },
+            {
+		"name": "sport",
+		"type": "number",
+		"required": false,
+            },
+            {
+		"name": "dport",
+		"type": "number",
+		"required": false,
+            },
+            {
+		"name": "proto",
+		"type": "string",
+		"required": false,
+            },
+            {
+		"name": "file",
+		"type": "string",
+		"required": false,
+            },
+            {
+		"name": "all",
+		"type": "number",
+		"required": false,
+            }
+      ],
+      "flow-clear": [],
+      "engine-stage": [],
     });
     serde_json::from_value(defs)
 }

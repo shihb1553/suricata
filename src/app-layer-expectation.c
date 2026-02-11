@@ -104,6 +104,13 @@ static void ExpectationDataFree(void *e)
     }
 }
 
+static void ExpectationDataShow(void *e, char *buffer, int len, int *offset)
+{
+    SCLogDebug("Show expectation data");
+    ExpectationData *ed = (ExpectationData *) e;
+    *offset += snprintf(buffer + *offset, len - *offset, "DFree: 0x%p", ed->DFree);
+}
+
 /**
  * Free expectation
  */
@@ -148,7 +155,7 @@ void AppLayerExpectationSetup(void)
     g_ippair_expectation_id =
             IPPairStorageRegister("expectation", sizeof(void *), NULL, ExpectationListFree);
     g_flow_expectation_id =
-            FlowStorageRegister("expectation", sizeof(void *), NULL, ExpectationDataFree);
+            FlowStorageRegisterWithShow("expectation", sizeof(void *), NULL, ExpectationDataFree, ExpectationDataShow);
     SC_ATOMIC_INIT(expectation_count);
 }
 

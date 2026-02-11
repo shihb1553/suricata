@@ -59,7 +59,15 @@ unsigned int HostStorageSize(void)
 HostStorageId HostStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *))
 {
-    int id = StorageRegister(STORAGE_HOST, name, size, Alloc, Free);
+    int id = StorageRegister(STORAGE_HOST, name, size, Alloc, Free, NULL);
+    HostStorageId hsi = { .id = id };
+    return hsi;
+}
+
+HostStorageId HostStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *))
+{
+    int id = StorageRegister(STORAGE_HOST, name, size, Alloc, Free, Show);
     HostStorageId hsi = { .id = id };
     return hsi;
 }
@@ -105,6 +113,17 @@ void HostFreeStorage(Host *h)
 {
     if (HostStorageSize() > 0)
         StorageFreeAll(h->storage, STORAGE_HOST);
+}
+
+void HostShowStorageById(Host *h, HostStorageId id, char *buffer, int len, int *offset)
+{
+    StorageShowById(h->storage, STORAGE_HOST, id.id, buffer, len, offset);
+}
+
+void HostShowStorage(Host *h, char *buffer, int len, int *offset)
+{
+    if (HostStorageSize() > 0)
+        StorageShowAll(h->storage, STORAGE_HOST, buffer, len, offset);
 }
 
 

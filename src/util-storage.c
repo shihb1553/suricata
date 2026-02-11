@@ -34,6 +34,7 @@ typedef struct StorageMapping_ {
     unsigned int size;
     void *(*Alloc)(unsigned int);
     void (*Free)(void *);
+    void (*Show)(void *, char *, int, int *);
 } StorageMapping;
 
 /** \brief list of StorageMapping used at registration time */
@@ -99,7 +100,8 @@ void StorageCleanup(void)
     storage_list = NULL;
 }
 
-int StorageRegister(const StorageEnum type, const char *name, const unsigned int size, void *(*Alloc)(unsigned int), void (*Free)(void *))
+int StorageRegister(const StorageEnum type, const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *))
 {
     if (storage_registration_closed)
         return -1;
@@ -129,6 +131,7 @@ int StorageRegister(const StorageEnum type, const char *name, const unsigned int
     entry->map.size = size;
     entry->map.Alloc = Alloc;
     entry->map.Free = Free;
+    entry->map.Show = Show;
 
     entry->id = storage_max_id[type]++;
     entry->next = storage_list;
@@ -172,6 +175,7 @@ int StorageFinalize(void)
             storage_map[entry->map.type][entry->id].size = entry->map.size;
             storage_map[entry->map.type][entry->id].Alloc = entry->map.Alloc;
             storage_map[entry->map.type][entry->id].Free = entry->map.Free;
+            storage_map[entry->map.type][entry->id].Show = entry->map.Show;
         }
 
         StorageList *next = entry->next;
@@ -294,6 +298,54 @@ void StorageFreeAll(Storage *storage, StorageEnum type)
             StorageMapping *map = &storage_map[type][i];
             map->Free(store[i].ptr);
             store[i].ptr = NULL;
+        }
+    }
+}
+
+void StorageShowById(Storage *storage, const StorageEnum type, const int id, char *buffer, int len, int *offset)
+{
+#ifdef DEBUG
+    BUG_ON(!storage_registration_closed);
+#endif
+#ifdef UNITTESTS
+    if (storage_map == NULL)
+        return;
+#endif
+    SCLogDebug("storage %p id %d", storage, id);
+
+    Storage *store = storage;
+    StorageMapping *map = &storage_map[type][id];
+    if (store != NULL) {
+        SCLogDebug("store %p", store);
+        if (store[id].ptr != NULL && map->Show != NULL) {
+            *offset += snprintf(buffer + *offset, len - *offset,
+                            "%s-%s: {", StoragePrintType(map->type), map->name);
+            map->Show(store[id].ptr, buffer, len, offset);
+            *offset += snprintf(buffer + *offset, len - *offset, "}");
+        }
+    }
+}
+
+void StorageShowAll(Storage *storage, const StorageEnum type, char *buffer, int len, int *offset)
+{
+    if (storage == NULL)
+        return;
+#ifdef DEBUG
+    BUG_ON(!storage_registration_closed);
+#endif
+#ifdef UNITTESTS
+    if (storage_map == NULL)
+        return;
+#endif
+
+    Storage *store = storage;
+    for (int i = 0; i < storage_max_id[type]; i++) {
+        StorageMapping *map = &storage_map[type][i];
+        if (store[i].ptr != NULL && map->Show != NULL) {
+            *offset += snprintf(buffer + *offset, len - *offset,
+                            "%s-%s: {", StoragePrintType(map->type), map->name);
+            map->Show(store[i].ptr, buffer, len, offset);
+            *offset += snprintf(buffer + *offset, len - *offset, "} ");
         }
     }
 }

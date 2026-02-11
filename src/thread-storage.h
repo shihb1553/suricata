@@ -37,9 +37,15 @@ void *ThreadAllocStorageById(ThreadVars *tv, ThreadStorageId id);
 void ThreadFreeStorageById(ThreadVars *tv, ThreadStorageId id);
 void ThreadFreeStorage(ThreadVars *tv);
 
+void ThreadShowStorageById(ThreadVars *tv, ThreadStorageId id, char *buffer, int len, int *offset);
+void ThreadShowStorage(ThreadVars *tv, char *buffer, int len, int *offset);
+
 void RegisterThreadStorageTests(void);
 
 ThreadStorageId ThreadStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *));
+ThreadStorageId ThreadStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *));
+
 
 #endif /* SURICATA_THREAD_STORAGE_H */

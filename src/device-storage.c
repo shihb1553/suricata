@@ -61,7 +61,15 @@ unsigned int LiveDevStorageSize(void)
 LiveDevStorageId LiveDevStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *))
 {
-    int id = StorageRegister(STORAGE_DEVICE, name, size, Alloc, Free);
+    int id = StorageRegister(STORAGE_DEVICE, name, size, Alloc, Free, NULL);
+    LiveDevStorageId ldsi = { .id = id };
+    return ldsi;
+}
+
+LiveDevStorageId LiveDevStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *))
+{
+    int id = StorageRegister(STORAGE_DEVICE, name, size, Alloc, Free, Show);
     LiveDevStorageId ldsi = { .id = id };
     return ldsi;
 }
@@ -104,4 +112,13 @@ void LiveDevFreeStorage(LiveDevice *d)
         StorageFreeAll(d->storage, STORAGE_DEVICE);
 }
 
+void LiveDevShowStorageById(LiveDevice *d, LiveDevStorageId id, char *buffer, int len, int *offset)
+{
+    StorageShowById(d->storage, STORAGE_DEVICE, id.id, buffer, len, offset);
+}
 
+void LiveDevShowStorage(LiveDevice *d, char *buffer, int len, int *offset)
+{
+    if (LiveDevStorageSize() > 0)
+        StorageShowAll(d->storage, STORAGE_DEVICE, buffer, len, offset);
+}

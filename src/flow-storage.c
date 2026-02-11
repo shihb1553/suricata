@@ -63,10 +63,29 @@ void FlowFreeStorage(Flow *f)
         StorageFreeAll(f->storage, STORAGE_FLOW);
 }
 
+void FlowShowStorageById(Flow *f, FlowStorageId id, char *buffer, int len, int *offset)
+{
+    StorageShowById(f->storage, STORAGE_FLOW, id.id, buffer, len, offset);
+}
+
+void FlowShowStorage(Flow *f, char *buffer, int len, int *offset)
+{
+    if (FlowStorageSize() > 0)
+        StorageShowAll(f->storage, STORAGE_FLOW, buffer, len, offset);
+}
+
 FlowStorageId FlowStorageRegister(const char *name, const unsigned int size,
         void *(*Alloc)(unsigned int), void (*Free)(void *))
 {
-    int id = StorageRegister(STORAGE_FLOW, name, size, Alloc, Free);
+    int id = StorageRegister(STORAGE_FLOW, name, size, Alloc, Free, NULL);
+    FlowStorageId fsi = { .id = id };
+    return fsi;
+}
+
+FlowStorageId FlowStorageRegisterWithShow(const char *name, const unsigned int size,
+        void *(*Alloc)(unsigned int), void (*Free)(void *), void (*Show)(void *, char *, int, int *))
+{
+    int id = StorageRegister(STORAGE_FLOW, name, size, Alloc, Free, Show);
     FlowStorageId fsi = { .id = id };
     return fsi;
 }
