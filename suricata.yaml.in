@@ -80,6 +80,7 @@ stats:
 
 # Plugins -- Experimental -- specify the filename for each plugin shared object
 plugins:
+  @prefix@/lib/@PACKAGE_NAME@/detect_time.so
   @pfring_comment@- @prefix@/lib/@PACKAGE_NAME@/pfring.so
   @napatech_comment@- @prefix@/lib/@PACKAGE_NAME@/napatech.so
   @ndpi_comment@- @prefix@/lib/@PACKAGE_NAME@/ndpi.so

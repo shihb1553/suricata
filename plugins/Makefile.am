@@ -1,4 +1,4 @@
-SUBDIRS =
+SUBDIRS = detect
 
 if BUILD_PFRING
 SUBDIRS += pfring
