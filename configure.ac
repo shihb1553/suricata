@@ -2620,6 +2620,8 @@ AC_CONFIG_FILES(plugins/pfring/Makefile)
 AC_CONFIG_FILES(plugins/napatech/Makefile)
 AC_CONFIG_FILES(plugins/ndpi/Makefile)
 AC_CONFIG_FILES(plugins/zmq/Makefile)
+AC_CONFIG_FILES(plugins/detect/Makefile)
+AC_CONFIG_FILES(plugins/detect/time/Makefile)
 
 AC_OUTPUT
 
