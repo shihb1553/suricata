@@ -29,9 +29,9 @@ CARGO_ENV +=	LOCALSTATEDIR=$(e_localstatedir)
 
 install:
 	$(MKDIR_P) "$(DESTDIR)$(libdir)"
-	$(INSTALL_DATA) $(abs_top_builddir)/rust/target/$(TARGET_PATH)/libsuricata_altemplate.so "$(DESTDIR)$(libdir)"/libalproto_altemplate.so
+	$(INSTALL_DATA) $(abs_top_builddir)/rust/target/$(TARGET_PATH)/libalproto_coap.so "$(DESTDIR)$(libdir)"
 	install -d "$(DESTDIR)$(e_sysconfdir)"
-	install -m 600 "altemplate.yaml" "$(DESTDIR)$(e_sysconfdir)"
+	install -m 600 "coap.yaml" "$(DESTDIR)$(e_sysconfdir)"
 
 all-local:
 	CC="$(CC)" AR="$(AR)" RANLIB="$(RANLIB)"\

@@ -17,18 +17,18 @@
 
 // same file as rust/src/applayertemplate/logger.rs except
 // different paths for use statements
-// open_object using altemplate instead of just template
+// open_object using coap instead of just template
 // Addition of SCJsonBuilderWrapper to look like a rust app-layer
 // even if we must use C API for SCJsonBuilder (because of its rust repr)
 
-use super::template::TemplateTransaction;
+use super::coap::COAPTransaction;
 use std::ffi::CString;
 use suricata::cast_pointer;
 use suricata_sys::jsonbuilder::{SCJbClose, SCJbOpenObject, SCJbSetString, SCJsonBuilder};
 
 use std;
 
-// syntax sugar around C API of SCJsonBuilder to feel like a normal app-layer in log_template
+// syntax sugar around C API of SCJsonBuilder to feel like a normal app-layer in log_coap
 pub struct SCJsonBuilderWrapper {
     inner: *mut SCJsonBuilder,
 }
@@ -57,8 +57,8 @@ impl SCJsonBuilderWrapper {
     }
 }
 
-fn log_template(tx: &TemplateTransaction, js: &mut SCJsonBuilderWrapper) -> Result<(), ()> {
-    js.open_object("altemplate")?;
+fn log_coap(tx: &COAPTransaction, js: &mut SCJsonBuilderWrapper) -> Result<(), ()> {
+    js.open_object("coap")?;
     if let Some(ref request) = tx.request {
         js.set_string("request", request)?;
     }
@@ -69,11 +69,11 @@ fn log_template(tx: &TemplateTransaction, js: &mut SCJsonBuilderWrapper) -> Resu
     Ok(())
 }
 
-pub(super) unsafe extern "C" fn template_logger_log(
+pub(super) unsafe extern "C" fn coap_logger_log(
     tx: *const std::os::raw::c_void, js: *mut std::os::raw::c_void,
 ) -> bool {
-    let tx = cast_pointer!(tx, TemplateTransaction);
+    let tx = cast_pointer!(tx, COAPTransaction);
     let js = cast_pointer!(js, SCJsonBuilder);
     let mut js = SCJsonBuilderWrapper { inner: js };
-    log_template(tx, &mut js).is_ok()
+    log_coap(tx, &mut js).is_ok()
 }

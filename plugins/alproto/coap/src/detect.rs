@@ -18,9 +18,9 @@
 // same file as rust/src/applayertemplate/detect.rs except
 // TEMPLATE_START_REMOVE removed
 // different paths for use statements
-// keywords prefixed with altemplate instead of just template
+// keywords prefixed with coap instead of just template
 
-use super::template::{TemplateTransaction, ALPROTO_TEMPLATE};
+use super::coap::{COAPTransaction, ALPROTO_COAP};
 use std::os::raw::{c_int, c_void};
 use suricata::cast_pointer;
 use suricata::core::{STREAM_TOCLIENT, STREAM_TOSERVER};
@@ -31,25 +31,25 @@ use suricata_sys::sys::{
     SCDetectSignatureSetAppProto, Signature,
 };
 
-static mut G_TEMPLATE_BUFFER_BUFFER_ID: c_int = 0;
+static mut G_COAP_BUFFER_BUFFER_ID: c_int = 0;
 
-unsafe extern "C" fn template_buffer_setup(
+unsafe extern "C" fn coap_buffer_setup(
     de: *mut DetectEngineCtx, s: *mut Signature, _raw: *const std::os::raw::c_char,
 ) -> c_int {
-    if SCDetectSignatureSetAppProto(s, ALPROTO_TEMPLATE) != 0 {
+    if SCDetectSignatureSetAppProto(s, ALPROTO_COAP) != 0 {
         return -1;
     }
-    if SCDetectBufferSetActiveList(de, s, G_TEMPLATE_BUFFER_BUFFER_ID) < 0 {
+    if SCDetectBufferSetActiveList(de, s, G_COAP_BUFFER_BUFFER_ID) < 0 {
         return -1;
     }
     return 0;
 }
 
 /// Get the request/response buffer for a transaction from C.
-unsafe extern "C" fn template_buffer_get(
+unsafe extern "C" fn coap_buffer_get(
     tx: *const c_void, flags: u8, buf: *mut *const u8, len: *mut u32,
 ) -> bool {
-    let tx = cast_pointer!(tx, TemplateTransaction);
+    let tx = cast_pointer!(tx, COAPTransaction);
     if flags & Direction::ToClient as u8 != 0 {
         if let Some(ref response) = tx.response {
             *len = response.len() as u32;
@@ -64,22 +64,22 @@ unsafe extern "C" fn template_buffer_get(
     return false;
 }
 
-pub(super) unsafe extern "C" fn detect_template_register() {
+pub(super) unsafe extern "C" fn detect_coap_register() {
     // TODO create a suricata-verify test
     // Setup a keyword structure and register it
     let kw = SigTableElmtStickyBuffer {
-        name: String::from("altemplate.buffer"),
-        desc: String::from("Template content modifier to match on the template buffer"),
+        name: String::from("coap.buffer"),
+        desc: String::from("COAP content modifier to match on the coap buffer"),
         // TODO use the right anchor for url and write doc
-        url: String::from("/rules/template-keywords.html#buffer"),
-        setup: template_buffer_setup,
+        url: String::from("/rules/coap-keywords.html#buffer"),
+        setup: coap_buffer_setup,
     };
-    let _g_template_buffer_kw_id = helper_keyword_register_sticky_buffer(&kw);
-    G_TEMPLATE_BUFFER_BUFFER_ID = SCDetectHelperBufferMpmRegister(
-        b"altemplate.buffer\0".as_ptr() as *const libc::c_char,
-        b"template.buffer intern description\0".as_ptr() as *const libc::c_char,
-        ALPROTO_TEMPLATE,
+    let _g_coap_buffer_kw_id = helper_keyword_register_sticky_buffer(&kw);
+    G_COAP_BUFFER_BUFFER_ID = SCDetectHelperBufferMpmRegister(
+        b"coap.buffer\0".as_ptr() as *const libc::c_char,
+        b"coap.buffer intern description\0".as_ptr() as *const libc::c_char,
+        ALPROTO_COAP,
         STREAM_TOSERVER | STREAM_TOCLIENT,
-        Some(template_buffer_get),
+        Some(coap_buffer_get),
     );
 }

@@ -18,7 +18,7 @@
 // same file as rust/src/applayertemplate/template.rs except
 // different paths for use statements
 // remove TEMPLATE_START_REMOVE
-// name is altemplate instead of template
+// name is coap instead of template
 
 use super::parser;
 use nom7 as nom;
@@ -43,16 +43,16 @@ use suricata_sys::sys::{
     SCAppLayerProtoDetectConfProtoDetectionEnabled,
 };
 
-static mut TEMPLATE_MAX_TX: usize = 256;
+static mut COAP_MAX_TX: usize = 256;
 
-pub(super) static mut ALPROTO_TEMPLATE: AppProto = ALPROTO_UNKNOWN;
+pub(super) static mut ALPROTO_COAP: AppProto = ALPROTO_UNKNOWN;
 
 #[derive(AppLayerEvent)]
-enum TemplateEvent {
+enum COAPEvent {
     TooManyTransactions,
 }
 
-pub(super) struct TemplateTransaction {
+pub(super) struct COAPTransaction {
     tx_id: u64,
     pub request: Option<String>,
     pub response: Option<String>,
@@ -60,14 +60,14 @@ pub(super) struct TemplateTransaction {
     tx_data: AppLayerTxData,
 }
 
-impl Default for TemplateTransaction {
+impl Default for COAPTransaction {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl TemplateTransaction {
-    pub fn new() -> TemplateTransaction {
+impl COAPTransaction {
+    pub fn new() -> COAPTransaction {
         Self {
             tx_id: 0,
             request: None,
@@ -77,32 +77,32 @@ impl TemplateTransaction {
     }
 }
 
-impl Transaction for TemplateTransaction {
+impl Transaction for COAPTransaction {
     fn id(&self) -> u64 {
         self.tx_id
     }
 }
 
 #[derive(Default)]
-struct TemplateState {
+struct COAPState {
     state_data: AppLayerStateData,
     tx_id: u64,
-    transactions: VecDeque<TemplateTransaction>,
+    transactions: VecDeque<COAPTransaction>,
     request_gap: bool,
     response_gap: bool,
 }
 
-impl State<TemplateTransaction> for TemplateState {
+impl State<COAPTransaction> for COAPState {
     fn get_transaction_count(&self) -> usize {
         self.transactions.len()
     }
 
-    fn get_transaction_by_index(&self, index: usize) -> Option<&TemplateTransaction> {
+    fn get_transaction_by_index(&self, index: usize) -> Option<&COAPTransaction> {
         self.transactions.get(index)
     }
 }
 
-impl TemplateState {
+impl COAPState {
     pub fn new() -> Self {
         Default::default()
     }
@@ -125,18 +125,18 @@ impl TemplateState {
         }
     }
 
-    pub fn get_tx(&mut self, tx_id: u64) -> Option<&TemplateTransaction> {
+    pub fn get_tx(&mut self, tx_id: u64) -> Option<&COAPTransaction> {
         self.transactions.iter().find(|tx| tx.tx_id == tx_id + 1)
     }
 
-    fn new_tx(&mut self) -> TemplateTransaction {
-        let mut tx = TemplateTransaction::new();
+    fn new_tx(&mut self) -> COAPTransaction {
+        let mut tx = COAPTransaction::new();
         self.tx_id += 1;
         tx.tx_id = self.tx_id;
         return tx;
     }
 
-    fn find_request(&mut self) -> Option<&mut TemplateTransaction> {
+    fn find_request(&mut self) -> Option<&mut COAPTransaction> {
         self.transactions
             .iter_mut()
             .find(|tx| tx.response.is_none())
@@ -152,7 +152,7 @@ impl TemplateState {
         if self.request_gap {
             if probe(input).is_err() {
                 // The parser now needs to decide what to do as we are not in sync.
-                // For this template, we'll just try again next time.
+                // For this coap, we'll just try again next time.
                 return AppLayerResult::ok();
             }
 
@@ -170,12 +170,12 @@ impl TemplateState {
                     SCLogNotice!("Request: {}", request);
                     let mut tx = self.new_tx();
                     tx.request = Some(request);
-                    if self.transactions.len() >= unsafe { TEMPLATE_MAX_TX } {
+                    if self.transactions.len() >= unsafe { COAP_MAX_TX } {
                         tx.tx_data
-                            .set_event(TemplateEvent::TooManyTransactions as u8);
+                            .set_event(COAPEvent::TooManyTransactions as u8);
                     }
                     self.transactions.push_back(tx);
-                    if self.transactions.len() >= unsafe { TEMPLATE_MAX_TX } {
+                    if self.transactions.len() >= unsafe { COAP_MAX_TX } {
                         return AppLayerResult::err();
                     }
                 }
@@ -206,7 +206,7 @@ impl TemplateState {
         if self.response_gap {
             if probe(input).is_err() {
                 // The parser now needs to decide what to do as we are not in sync.
-                // For this template, we'll just try again next time.
+                // For this coap, we'll just try again next time.
                 return AppLayerResult::ok();
             }
 
@@ -254,7 +254,7 @@ impl TemplateState {
 
 /// Probe for a valid header.
 ///
-/// As this template protocol uses messages prefixed with the size
+/// As this coap protocol uses messages prefixed with the size
 /// as a string followed by a ':', we look at up to the first 10
 /// characters for that pattern.
 fn probe(input: &[u8]) -> nom::IResult<&[u8], ()> {
@@ -270,35 +270,35 @@ fn probe(input: &[u8]) -> nom::IResult<&[u8], ()> {
 // C exports.
 
 /// C entry point for a probing parser.
-unsafe extern "C" fn template_probing_parser(
+unsafe extern "C" fn coap_probing_parser(
     _flow: *const Flow, _direction: u8, input: *const u8, input_len: u32, _rdir: *mut u8,
 ) -> AppProto {
     // Need at least 2 bytes.
     if input_len > 1 && !input.is_null() {
         let slice = build_slice!(input, input_len as usize);
         if probe(slice).is_ok() {
-            return ALPROTO_TEMPLATE;
+            return ALPROTO_COAP;
         }
     }
     return ALPROTO_UNKNOWN;
 }
 
-extern "C" fn template_state_new(_orig_state: *mut c_void, _orig_proto: AppProto) -> *mut c_void {
-    let state = TemplateState::new();
+extern "C" fn coap_state_new(_orig_state: *mut c_void, _orig_proto: AppProto) -> *mut c_void {
+    let state = COAPState::new();
     let boxed = Box::new(state);
     return Box::into_raw(boxed) as *mut c_void;
 }
 
-unsafe extern "C" fn template_state_free(state: *mut c_void) {
-    std::mem::drop(Box::from_raw(state as *mut TemplateState));
+unsafe extern "C" fn coap_state_free(state: *mut c_void) {
+    std::mem::drop(Box::from_raw(state as *mut COAPState));
 }
 
-unsafe extern "C" fn template_state_tx_free(state: *mut c_void, tx_id: u64) {
-    let state = cast_pointer!(state, TemplateState);
+unsafe extern "C" fn coap_state_tx_free(state: *mut c_void, tx_id: u64) {
+    let state = cast_pointer!(state, COAPState);
     state.free_tx(tx_id);
 }
 
-unsafe extern "C" fn template_parse_request(
+unsafe extern "C" fn coap_parse_request(
     _flow: *mut Flow, state: *mut c_void, pstate: *mut AppLayerParserState,
     stream_slice: StreamSlice, _data: *const c_void,
 ) -> AppLayerResult {
@@ -309,7 +309,7 @@ unsafe extern "C" fn template_parse_request(
         return AppLayerResult::ok();
     }
 
-    let state = cast_pointer!(state, TemplateState);
+    let state = cast_pointer!(state, COAPState);
 
     if stream_slice.is_gap() {
         // Here we have a gap signaled by the input being null, but a greater
@@ -322,12 +322,12 @@ unsafe extern "C" fn template_parse_request(
     }
 }
 
-unsafe extern "C" fn template_parse_response(
+unsafe extern "C" fn coap_parse_response(
     _flow: *mut Flow, state: *mut c_void, pstate: *mut AppLayerParserState,
     stream_slice: StreamSlice, _data: *const c_void,
 ) -> AppLayerResult {
     let _eof = SCAppLayerParserStateIssetFlag(pstate, APP_LAYER_PARSER_EOF_TC) > 0;
-    let state = cast_pointer!(state, TemplateState);
+    let state = cast_pointer!(state, COAPState);
 
     if stream_slice.is_gap() {
         // Here we have a gap signaled by the input being null, but a greater
@@ -340,8 +340,8 @@ unsafe extern "C" fn template_parse_response(
     }
 }
 
-unsafe extern "C" fn template_state_get_tx(state: *mut c_void, tx_id: u64) -> *mut c_void {
-    let state = cast_pointer!(state, TemplateState);
+unsafe extern "C" fn coap_state_get_tx(state: *mut c_void, tx_id: u64) -> *mut c_void {
+    let state = cast_pointer!(state, COAPState);
     match state.get_tx(tx_id) {
         Some(tx) => {
             return tx as *const _ as *mut _;
@@ -352,13 +352,13 @@ unsafe extern "C" fn template_state_get_tx(state: *mut c_void, tx_id: u64) -> *m
     }
 }
 
-unsafe extern "C" fn template_state_get_tx_count(state: *mut c_void) -> u64 {
-    let state = cast_pointer!(state, TemplateState);
+unsafe extern "C" fn coap_state_get_tx_count(state: *mut c_void) -> u64 {
+    let state = cast_pointer!(state, COAPState);
     return state.tx_id;
 }
 
-unsafe extern "C" fn template_tx_get_alstate_progress(tx: *mut c_void, _direction: u8) -> c_int {
-    let tx = cast_pointer!(tx, TemplateTransaction);
+unsafe extern "C" fn coap_tx_get_alstate_progress(tx: *mut c_void, _direction: u8) -> c_int {
+    let tx = cast_pointer!(tx, COAPTransaction);
 
     // Transaction is done if we have a response.
     if tx.response.is_some() {
@@ -367,40 +367,40 @@ unsafe extern "C" fn template_tx_get_alstate_progress(tx: *mut c_void, _directio
     return 0;
 }
 
-export_tx_data_get!(template_get_tx_data, TemplateTransaction);
-export_state_data_get!(template_get_state_data, TemplateState);
+export_tx_data_get!(coap_get_tx_data, COAPTransaction);
+export_state_data_get!(coap_get_state_data, COAPState);
 
 // Parser name as a C style string.
-const PARSER_NAME: &[u8] = b"altemplate\0";
+const PARSER_NAME: &[u8] = b"coap\0";
 
-pub(super) unsafe extern "C" fn template_register_parser() {
+pub(super) unsafe extern "C" fn coap_register_parser() {
     let default_port = CString::new("[7000]").unwrap();
     let parser = RustParser {
         name: PARSER_NAME.as_ptr() as *const c_char,
         default_port: default_port.as_ptr(),
         ipproto: IPPROTO_TCP,
-        probe_ts: Some(template_probing_parser),
-        probe_tc: Some(template_probing_parser),
+        probe_ts: Some(coap_probing_parser),
+        probe_tc: Some(coap_probing_parser),
         min_depth: 0,
         max_depth: 16,
-        state_new: template_state_new,
-        state_free: template_state_free,
-        tx_free: template_state_tx_free,
-        parse_ts: template_parse_request,
-        parse_tc: template_parse_response,
-        get_tx_count: template_state_get_tx_count,
-        get_tx: template_state_get_tx,
+        state_new: coap_state_new,
+        state_free: coap_state_free,
+        tx_free: coap_state_tx_free,
+        parse_ts: coap_parse_request,
+        parse_tc: coap_parse_response,
+        get_tx_count: coap_state_get_tx_count,
+        get_tx: coap_state_get_tx,
         tx_comp_st_ts: 1,
         tx_comp_st_tc: 1,
-        tx_get_progress: template_tx_get_alstate_progress,
-        get_eventinfo: Some(TemplateEvent::get_event_info),
-        get_eventinfo_byid: Some(TemplateEvent::get_event_info_by_id),
+        tx_get_progress: coap_tx_get_alstate_progress,
+        get_eventinfo: Some(COAPEvent::get_event_info),
+        get_eventinfo_byid: Some(COAPEvent::get_event_info_by_id),
         localstorage_new: None,
         localstorage_free: None,
         get_tx_files: None,
-        get_tx_iterator: Some(state_get_tx_iterator::<TemplateState, TemplateTransaction>),
-        get_tx_data: template_get_tx_data,
-        get_state_data: template_get_state_data,
+        get_tx_iterator: Some(state_get_tx_iterator::<COAPState, COAPTransaction>),
+        get_tx_data: coap_get_tx_data,
+        get_state_data: coap_get_state_data,
         apply_tx_config: None,
         flags: APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
         get_frame_id_by_name: None,
@@ -413,21 +413,21 @@ pub(super) unsafe extern "C" fn template_register_parser() {
 
     if SCAppLayerProtoDetectConfProtoDetectionEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
         let alproto = AppLayerRegisterProtocolDetection(&parser, 1);
-        ALPROTO_TEMPLATE = alproto;
+        ALPROTO_COAP = alproto;
         if SCAppLayerParserConfParserEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
             let _ = AppLayerRegisterParser(&parser, alproto);
         }
-        if let Some(val) = conf_get("app-layer.protocols.template.max-tx") {
+        if let Some(val) = conf_get("app-layer.protocols.coap.max-tx") {
             if let Ok(v) = val.parse::<usize>() {
-                TEMPLATE_MAX_TX = v;
+                COAP_MAX_TX = v;
             } else {
-                SCLogError!("Invalid value for template.max-tx");
+                SCLogError!("Invalid value for coap.max-tx");
             }
         }
-        SCAppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_TEMPLATE);
-        SCLogNotice!("Rust template parser registered.");
+        SCAppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_COAP);
+        SCLogNotice!("Rust coap parser registered.");
     } else {
-        SCLogNotice!("Protocol detector and parser disabled for TEMPLATE.");
+        SCLogNotice!("Protocol detector and parser disabled for COAP.");
     }
 }
 
@@ -445,7 +445,7 @@ mod test {
 
     #[test]
     fn test_incomplete() {
-        let mut state = TemplateState::new();
+        let mut state = COAPState::new();
         let buf = b"5:Hello3:bye";
 
         let r = state.parse_request(&buf[0..0]);

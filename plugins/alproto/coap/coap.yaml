@@ -1,0 +1,9 @@
+%YAML 1.1
+---
+
+app-layer:
+  protocols:
+    coap:
+      enabled: yes
+      detection-ports:
+        dp: 7000

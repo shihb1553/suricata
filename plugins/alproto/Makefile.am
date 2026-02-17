@@ -1,1 +1,1 @@
-SUBDIRS = altemplate
+SUBDIRS = coap
