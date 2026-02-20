@@ -1,2 +1,2 @@
-alert coap any any -> any any (msg:"TEST"; coap.buffer; content:"Hello"; flow:established,to_server; sid:1; rev:1;)
-alert coap any any -> any any (msg:"TEST"; coap.buffer; content:"Bye"; flow:established,to_client; sid:2; rev:1;)
+alert coap any any -> any any (msg:"CoAP access to /admin"; coap.uri_path: "/admin"; sid:1; rev:1;)
+alert coap any any -> any any (msg:"CoAP PUT method detected"; coap.code: 3; sid:2; rev:1;)

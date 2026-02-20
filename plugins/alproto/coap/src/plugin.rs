@@ -38,7 +38,7 @@ extern "C" fn SCPluginRegister() -> *const SCPlugin {
         name: b"coap\0".as_ptr() as *const libc::c_char,
         plugin_version,
         license: b"MIT\0".as_ptr() as *const libc::c_char,
-        author: b"Philippe Antoine\0".as_ptr() as *const libc::c_char,
+        author: b"shihb1553 <shihb0416121210@163.com>\0".as_ptr() as *const libc::c_char,
         Init: Some(coap_plugin_init),
     };
     Box::into_raw(Box::new(plugin))

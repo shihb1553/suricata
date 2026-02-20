@@ -33,7 +33,7 @@ use suricata::applayer::{
     APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
 };
 use suricata::conf::conf_get;
-use suricata::core::{ALPROTO_UNKNOWN, IPPROTO_TCP};
+use suricata::core::{ALPROTO_UNKNOWN, IPPROTO_UDP};
 use suricata::{
     build_slice, cast_pointer, export_state_data_get, export_tx_data_get, SCLogError, SCLogNotice,
 };
@@ -52,10 +52,25 @@ enum COAPEvent {
     TooManyTransactions,
 }
 
+enum COAPCode {
+    GET = 1,
+    POST,
+    PUT,
+    DELETE,
+}
+
 pub(super) struct COAPTransaction {
     tx_id: u64,
     pub request: Option<String>,
     pub response: Option<String>,
+    pub msg_type: Option<String>,
+    pub code: u16,
+    pub mid: u16,
+    pub token: Option<String>,
+    pub uri_path: Option<String>,
+    pub uri_query: Option<String>,
+    pub payload: Option<String>,
+    pub options: Option<String>,
 
     tx_data: AppLayerTxData,
 }
@@ -374,14 +389,14 @@ export_state_data_get!(coap_get_state_data, COAPState);
 const PARSER_NAME: &[u8] = b"coap\0";
 
 pub(super) unsafe extern "C" fn coap_register_parser() {
-    let default_port = CString::new("[7000]").unwrap();
+    let default_port = CString::new("[5683]").unwrap();
     let parser = RustParser {
         name: PARSER_NAME.as_ptr() as *const c_char,
         default_port: default_port.as_ptr(),
-        ipproto: IPPROTO_TCP,
+        ipproto: IPPROTO_UDP,
         probe_ts: Some(coap_probing_parser),
         probe_tc: Some(coap_probing_parser),
-        min_depth: 0,
+        min_depth: 4,
         max_depth: 16,
         state_new: coap_state_new,
         state_free: coap_state_free,
@@ -409,7 +424,7 @@ pub(super) unsafe extern "C" fn coap_register_parser() {
         get_state_name_by_id: None,
     };
 
-    let ip_proto_str = CString::new("tcp").unwrap();
+    let ip_proto_str = CString::new("udp").unwrap();
 
     if SCAppLayerProtoDetectConfProtoDetectionEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
         let alproto = AppLayerRegisterProtocolDetection(&parser, 1);
@@ -424,7 +439,7 @@ pub(super) unsafe extern "C" fn coap_register_parser() {
                 SCLogError!("Invalid value for coap.max-tx");
             }
         }
-        SCAppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_COAP);
+        SCAppLayerParserRegisterLogger(IPPROTO_UDP, ALPROTO_COAP);
         SCLogNotice!("Rust coap parser registered.");
     } else {
         SCLogNotice!("Protocol detector and parser disabled for COAP.");

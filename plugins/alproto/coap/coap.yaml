@@ -6,4 +6,4 @@ app-layer:
     coap:
       enabled: yes
       detection-ports:
-        dp: 7000
+        dp: 5683
