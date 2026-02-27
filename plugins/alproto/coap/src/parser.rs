@@ -21,8 +21,38 @@ use nom7::{
     bytes::streaming::{take, take_until},
     combinator::map_res,
     IResult,
+    number::streaming::{be_u16, be_u8},
 };
 use std;
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct COAPFrameHeader {
+    //we could add detection on (GOAWAY) additional data
+    pub version: u8,
+    pub ftype: u8,
+    pub token_length: u8,
+    pub code: u8,
+    pub message_id: u16,
+}
+
+pub fn parse_frame_header(i: &[u8]) -> IResult<&[u8], COAPFrameHeader> {
+    let (i, data0) = be_u8(i)?;
+    let (i, code) = be_u8(i)?;
+    let (i, message_id) = be_u16(i)?;
+    let version = data0 >> 6;
+    let ftype = (data0 >> 4) & 0x03;
+    let token_length = data0 & 0x0f;
+    Ok((
+        i,
+        COAPFrameHeader {
+            version,
+            ftype,
+            token_length,
+            code,
+            message_id,
+        },
+    ))
+}
 
 fn parse_len(input: &str) -> Result<u32, std::num::ParseIntError> {
     input.parse::<u32>()

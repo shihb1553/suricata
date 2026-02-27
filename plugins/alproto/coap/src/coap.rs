@@ -33,7 +33,7 @@ use suricata::applayer::{
     APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
 };
 use suricata::conf::conf_get;
-use suricata::core::{ALPROTO_UNKNOWN, IPPROTO_UDP};
+use suricata::core::{ALPROTO_UNKNOWN, ALPROTO_FAILED, IPPROTO_UDP};
 use suricata::{
     build_slice, cast_pointer, export_state_data_get, export_tx_data_get, SCLogError, SCLogNotice,
 };
@@ -288,14 +288,28 @@ fn probe(input: &[u8]) -> nom::IResult<&[u8], ()> {
 unsafe extern "C" fn coap_probing_parser(
     _flow: *const Flow, _direction: u8, input: *const u8, input_len: u32, _rdir: *mut u8,
 ) -> AppProto {
-    // Need at least 2 bytes.
-    if input_len > 1 && !input.is_null() {
-        let slice = build_slice!(input, input_len as usize);
-        if probe(slice).is_ok() {
+    // Need at least 4 bytes.
+    if input_len < 4 || input.is_null() {
+        return ALPROTO_UNKNOWN;
+    }
+
+    let slice = build_slice!(input, input_len as usize);
+    match parser::parse_frame_header(slice) {
+        Ok((_, header)) => {
+            if header.version != 1
+                || input_len < (header.token_length + 4) as u32
+            {
+                return ALPROTO_FAILED;
+            }
             return ALPROTO_COAP;
         }
+        Err(nom::Err::Incomplete(_)) => {
+            return ALPROTO_UNKNOWN;
+        }
+        Err(_) => {
+            return ALPROTO_FAILED;
+        }
     }
-    return ALPROTO_UNKNOWN;
 }
 
 extern "C" fn coap_state_new(_orig_state: *mut c_void, _orig_proto: AppProto) -> *mut c_void {
@@ -396,7 +410,7 @@ pub(super) unsafe extern "C" fn coap_register_parser() {
         ipproto: IPPROTO_UDP,
         probe_ts: Some(coap_probing_parser),
         probe_tc: Some(coap_probing_parser),
-        min_depth: 4,
+        min_depth: 0,
         max_depth: 16,
         state_new: coap_state_new,
         state_free: coap_state_free,
