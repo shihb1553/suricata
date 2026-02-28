@@ -28,10 +28,8 @@ CARGO_ENV =	@rustup_home@ \
 CARGO_ENV +=	LOCALSTATEDIR=$(e_localstatedir)
 
 install:
-	$(MKDIR_P) "$(DESTDIR)$(libdir)"
-	$(INSTALL_DATA) $(abs_top_builddir)/rust/target/$(TARGET_PATH)/libalproto_coap.so "$(DESTDIR)$(libdir)"
-	install -d "$(DESTDIR)$(e_sysconfdir)"
-	install -m 600 "coap.yaml" "$(DESTDIR)$(e_sysconfdir)"
+	$(MKDIR_P) "$(DESTDIR)$(libdir)/suricata"
+	$(INSTALL_DATA) $(abs_top_builddir)/rust/target/$(TARGET_PATH)/libalproto_coap.so "$(DESTDIR)$(libdir)/suricata/alproto_coap.so"
 
 all-local:
 	CC="$(CC)" AR="$(AR)" RANLIB="$(RANLIB)"\

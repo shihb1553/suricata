@@ -87,6 +87,14 @@ impl COAPTransaction {
             tx_id: 0,
             request: None,
             response: None,
+            msg_type: None,
+            code: 0,
+            mid: 0,
+            token: None,
+            uri_path: None,
+            uri_query: None,
+            payload: None,
+            options: None,
             tx_data: AppLayerTxData::new(),
         }
     }
