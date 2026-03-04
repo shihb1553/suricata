@@ -52,13 +52,13 @@ unsafe extern "C" fn coap_buffer_get(
     let tx = cast_pointer!(tx, COAPTransaction);
     if flags & Direction::ToClient as u8 != 0 {
         if let Some(ref response) = tx.response {
-            *len = response.len() as u32;
-            *buf = response.as_ptr();
+            *len = response.data.len() as u32;
+            *buf = response.data.as_ptr();
             return true;
         }
     } else if let Some(ref request) = tx.request {
-        *len = request.len() as u32;
-        *buf = request.as_ptr();
+        *len = request.data.len() as u32;
+        *buf = request.data.as_ptr();
         return true;
     }
     return false;

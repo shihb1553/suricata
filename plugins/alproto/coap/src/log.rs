@@ -24,7 +24,7 @@
 use super::coap::COAPTransaction;
 use std::ffi::CString;
 use suricata::cast_pointer;
-use suricata_sys::jsonbuilder::{SCJbClose, SCJbOpenObject, SCJbSetString, SCJsonBuilder};
+use suricata_sys::jsonbuilder::{SCJbClose, SCJbOpenObject, SCJbSetString, SCJbSetUint, SCJsonBuilder};
 
 use std;
 
@@ -55,15 +55,31 @@ impl SCJsonBuilderWrapper {
         }
         Ok(())
     }
+    fn set_uint(&mut self, key: &str, val: u64) -> Result<(), ()> {
+        let keyc = CString::new(key).unwrap();
+        if unsafe { !SCJbSetUint(self.inner, keyc.as_ptr(), val) } {
+            return Err(());
+        }
+        Ok(())
+    }
 }
 
 fn log_coap(tx: &COAPTransaction, js: &mut SCJsonBuilderWrapper) -> Result<(), ()> {
     js.open_object("coap")?;
     if let Some(ref request) = tx.request {
-        js.set_string("request", request)?;
+        js.open_object("request")?;
+        js.set_uint("version", request.header.version as u64)?;
+        js.set_uint("type", request.header.ftype as u64)?;
+        js.set_uint("token_length", request.header.token_length as u64)?;
+        js.set_uint("code", request.header.code as u64)?;
+        js.set_uint("message_id", request.header.message_id as u64)?;
+        js.set_string("token", &hex::encode(&request.header.token))?;
+        js.close()?;
     }
     if let Some(ref response) = tx.response {
-        js.set_string("response", response)?;
+        js.open_object("response")?;
+        js.set_uint("code", response.header.code as u64)?;
+        js.close()?;
     }
     js.close()?;
     Ok(())

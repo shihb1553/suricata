@@ -17,53 +17,182 @@
 
 // same file as rust/src/applayertemplate/parser.rs except this comment
 
+use super::coap::*;
 use nom7::{
-    bytes::streaming::{take, take_until},
-    combinator::map_res,
     IResult,
+    bytes::streaming::take,
     number::streaming::{be_u16, be_u8},
 };
-use std;
+
+pub struct COAPMessage {
+    pub header: COAPHeader,
+
+    pub options: Vec<COAPOption>,
+
+    pub data: Vec<u8>,
+
+    // Set to true if the options were found to be malformed. That is
+    // failing to parse with enough data.
+    pub malformed_options: bool,
+
+    // Set to true if the options failed to parse due to not enough
+    // data.
+    pub truncated_options: bool,
+}
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct COAPFrameHeader {
-    //we could add detection on (GOAWAY) additional data
+pub struct COAPHeader {
     pub version: u8,
     pub ftype: u8,
     pub token_length: u8,
     pub code: u8,
     pub message_id: u16,
+    pub token: Vec<u8>,
 }
 
-pub fn parse_frame_header(i: &[u8]) -> IResult<&[u8], COAPFrameHeader> {
+pub struct COAPOptContentType {
+    pub content_type: u8,
+}
+
+pub struct COAPOptGeneric {
+    pub data: Vec<u8>,
+}
+
+pub enum COAPOptionWrapper {
+    ContentType(COAPOptContentType),
+    Generic(COAPOptGeneric),
+    End,
+}
+
+pub struct COAPOption {
+    pub code: u16,
+    pub data: Option<Vec<u8>>,
+    pub option: COAPOptionWrapper,
+}
+
+pub fn parse_header(i: &[u8]) -> IResult<&[u8], COAPHeader> {
     let (i, data0) = be_u8(i)?;
     let (i, code) = be_u8(i)?;
     let (i, message_id) = be_u16(i)?;
     let version = data0 >> 6;
     let ftype = (data0 >> 4) & 0x03;
     let token_length = data0 & 0x0f;
+    let (i, token) = if token_length > 0 {
+        let (i, token) = take(token_length)(i)?;
+        (i, token.to_vec())
+    } else {
+        (i, vec![])
+    };
     Ok((
         i,
-        COAPFrameHeader {
+        COAPHeader {
             version,
             ftype,
             token_length,
             code,
             message_id,
+            token,
         },
     ))
 }
 
-fn parse_len(input: &str) -> Result<u32, std::num::ParseIntError> {
-    input.parse::<u32>()
+// Parse a single COAP option. When option 255 (END) is parsed, the remaining
+// data will be consumed.
+pub fn parse_option(i: &[u8]) -> IResult<&[u8], COAPOption> {
+    let (_, opt) = be_u8(i)?;
+    if opt == COAP_OPT_END {
+        let (_, code) = be_u8(i)?;
+        return Ok((i, COAPOption {
+            code: code as u16,
+            data: None,
+            option: COAPOptionWrapper::End,
+        }));
+    }
+    let delta = opt >> 4;
+    let code = if delta == 13 {
+        let (_, code) = be_u8(i)?;
+        (code + 13) as u16
+    } else if delta == 14 {
+        let (_, code) = be_u16(i)?;
+        code + 269
+    } else {
+        delta as u16
+    };
+    let length = opt & 0x0f;
+    let (i, length) = if length == 13 {
+        let (i, length) = be_u8(i)?;
+        (i, (length + 13) as u16)
+    } else if length == 14 {
+        let (i, length) = be_u16(i)?;
+        (i, length + 269)
+    } else {
+        (i, length as u16)
+    };
+    let (i, data) = take(length)(i)?;
+    match code {
+        COAP_OPT_CONTENT_TYPE => {
+            let (i, content_type) = be_u8(data)?;
+            let (_, data) = take(data.len() - 1)(data)?;
+            Ok((
+                i,
+                COAPOption {
+                    code,
+                    data: Some(data.to_vec()),
+                    option: COAPOptionWrapper::ContentType(COAPOptContentType { content_type })
+                }
+            ))
+        }
+        _ => {
+            Ok((
+                i,
+                COAPOption {
+                    code,
+                    data: Some(data.to_vec()),
+                    option: COAPOptionWrapper::Generic(COAPOptGeneric {
+                        data: data.to_vec(),
+                    }),
+                },
+            ))
+        }
+    }
 }
 
-pub(super) fn parse_message(i: &[u8]) -> IResult<&[u8], String> {
-    let (i, len) = map_res(map_res(take_until(":"), std::str::from_utf8), parse_len)(i)?;
-    let (i, _sep) = take(1_usize)(i)?;
-    let (i, msg) = map_res(take(len as usize), std::str::from_utf8)(i)?;
-    let result = msg.to_string();
-    Ok((i, result))
+pub fn parse_coap(input: &[u8]) -> IResult<&[u8], COAPMessage> {
+    match parse_header(input) {
+        Ok((rem, header)) => {
+            let mut options = Vec::new();
+            let mut next = rem;
+            let malformed_options = false;
+            let mut truncated_options = false;
+            loop {
+                match parse_option(next) {
+                    Ok((rem, option)) => {
+                        let done = option.code == COAP_OPT_END as u16;
+                        options.push(option);
+                        next = rem;
+                        if done {
+                            break;
+                        }
+                    }
+                    Err(_) => {
+                        truncated_options = true;
+                        break;
+                    }
+                }
+            }
+            let message = COAPMessage {
+                header,
+                options,
+                data: next.to_vec(),
+                malformed_options,
+                truncated_options,
+            };
+            return Ok((next, message));
+        }
+        Err(err) => {
+            return Err(err);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -76,7 +205,7 @@ mod tests {
     fn test_parse_valid() {
         let buf = b"12:Hello World!4:Bye.";
 
-        let result = parse_message(buf);
+        let result = parse_header(buf);
         match result {
             Ok((remainder, message)) => {
                 // Check the first message.

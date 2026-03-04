@@ -20,6 +20,8 @@
 // remove TEMPLATE_START_REMOVE
 // name is coap instead of template
 
+use crate::parser::COAPMessage;
+
 use super::parser;
 use nom7 as nom;
 use std;
@@ -47,9 +49,36 @@ static mut COAP_MAX_TX: usize = 256;
 
 pub(super) static mut ALPROTO_COAP: AppProto = ALPROTO_UNKNOWN;
 
+static COAP_MIN_FRAME_LEN: u32 = 4;
+
+pub const COAP_OPT_IF_MATCH: u16 = 1;
+pub const COAP_OPT_URI_HOST: u16 = 3;
+pub const COAP_OPT_ETAG: u16 = 4;
+pub const COAP_OPT_IF_NOT_MATCH: u16 = 5;
+pub const COAP_OPT_OBSERVE: u16 = 6;
+pub const COAP_OPT_URI_PORT: u16 = 7;
+pub const COAP_OPT_URI_LOCATION_PATH: u16 = 8;
+pub const COAP_OPT_URI_OBJECT_SECURITY: u16 = 9;
+pub const COAP_OPT_URI_PATH: u16 = 11;
+pub const COAP_OPT_CONTENT_TYPE: u16 = 12;
+pub const COAP_OPT_MAX_AGE: u16 = 14;
+pub const COAP_OPT_URI_QUERY: u16 = 15;
+pub const COAP_OPT_HOP_LIMIT: u16 = 16;
+pub const COAP_OPT_ACCEPT: u16 = 17;
+pub const COAP_OPT_LOCATION_QUERY: u16 = 20;
+pub const COAP_OPT_BLOCK2: u16 = 23;
+pub const COAP_OPT_BLOCK1: u16 = 27;
+pub const COAP_OPT_SIZE2: u16 = 28;
+pub const COAP_OPT_PROXY_URI: u16 = 35;
+pub const COAP_OPT_PROXY_SCHEME: u16 = 39;
+pub const COAP_OPT_SIZE1: u16 = 60;
+pub const COAP_OPT_END: u8 = 255;
+
 #[derive(AppLayerEvent)]
 enum COAPEvent {
     TooManyTransactions,
+    MalformedOptions,
+    TruncatedOptions,
 }
 
 enum COAPCode {
@@ -61,16 +90,8 @@ enum COAPCode {
 
 pub(super) struct COAPTransaction {
     tx_id: u64,
-    pub request: Option<String>,
-    pub response: Option<String>,
-    pub msg_type: Option<String>,
-    pub code: u16,
-    pub mid: u16,
-    pub token: Option<String>,
-    pub uri_path: Option<String>,
-    pub uri_query: Option<String>,
-    pub payload: Option<String>,
-    pub options: Option<String>,
+    pub request: Option<COAPMessage>,
+    pub response: Option<COAPMessage>,
 
     tx_data: AppLayerTxData,
 }
@@ -87,14 +108,6 @@ impl COAPTransaction {
             tx_id: 0,
             request: None,
             response: None,
-            msg_type: None,
-            code: 0,
-            mid: 0,
-            token: None,
-            uri_path: None,
-            uri_query: None,
-            payload: None,
-            options: None,
             tx_data: AppLayerTxData::new(),
         }
     }
@@ -186,16 +199,23 @@ impl COAPState {
 
         let mut start = input;
         while !start.is_empty() {
-            match parser::parse_message(start) {
-                Ok((rem, request)) => {
+            match parser::parse_coap(start) {
+                Ok((rem, message)) => {
                     start = rem;
+                    let malformed_options = message.malformed_options;
+                    let truncated_options = message.truncated_options;
 
-                    SCLogNotice!("Request: {}", request);
                     let mut tx = self.new_tx();
-                    tx.request = Some(request);
+                    tx.request = Some(message);
                     if self.transactions.len() >= unsafe { COAP_MAX_TX } {
                         tx.tx_data
                             .set_event(COAPEvent::TooManyTransactions as u8);
+                    }
+                    if malformed_options {
+                        tx.tx_data.set_event(COAPEvent::MalformedOptions as u8);
+                    }
+                    if truncated_options {
+                        tx.tx_data.set_event(COAPEvent::TruncatedOptions as u8);
                     }
                     self.transactions.push_back(tx);
                     if self.transactions.len() >= unsafe { COAP_MAX_TX } {
@@ -239,16 +259,13 @@ impl COAPState {
         }
         let mut start = input;
         while !start.is_empty() {
-            match parser::parse_message(start) {
-                Ok((rem, response)) => {
+            match parser::parse_coap(start) {
+                Ok((rem, message)) => {
                     start = rem;
 
                     if let Some(tx) = self.find_request() {
                         tx.tx_data.updated_tc = true;
-                        tx.response = Some(response);
-                        SCLogNotice!("Found response for request:");
-                        SCLogNotice!("- Request: {:?}", tx.request);
-                        SCLogNotice!("- Response: {:?}", tx.response);
+                        tx.response = Some(message);
                     }
                 }
                 Err(nom::Err::Incomplete(_)) => {
@@ -281,13 +298,7 @@ impl COAPState {
 /// as a string followed by a ':', we look at up to the first 10
 /// characters for that pattern.
 fn probe(input: &[u8]) -> nom::IResult<&[u8], ()> {
-    let size = std::cmp::min(10, input.len());
-    let (rem, prefix) = nom::bytes::complete::take(size)(input)?;
-    nom::sequence::terminated(
-        nom::bytes::complete::take_while1(nom::character::is_digit),
-        nom::bytes::complete::tag(":"),
-    )(prefix)?;
-    Ok((rem, ()))
+    Ok((input, ()))
 }
 
 // C exports.
@@ -297,16 +308,14 @@ unsafe extern "C" fn coap_probing_parser(
     _flow: *const Flow, _direction: u8, input: *const u8, input_len: u32, _rdir: *mut u8,
 ) -> AppProto {
     // Need at least 4 bytes.
-    if input_len < 4 || input.is_null() {
+    if input_len < COAP_MIN_FRAME_LEN || input.is_null() {
         return ALPROTO_UNKNOWN;
     }
 
     let slice = build_slice!(input, input_len as usize);
-    match parser::parse_frame_header(slice) {
+    match parser::parse_header(slice) {
         Ok((_, header)) => {
-            if header.version != 1
-                || input_len < (header.token_length + 4) as u32
-            {
+            if header.version != 1 {
                 return ALPROTO_FAILED;
             }
             return ALPROTO_COAP;
@@ -471,14 +480,6 @@ pub(super) unsafe extern "C" fn coap_register_parser() {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn test_probe() {
-        assert!(probe(b"1").is_err());
-        assert!(probe(b"1:").is_ok());
-        assert!(probe(b"123456789:").is_ok());
-        assert!(probe(b"0123456789:").is_err());
-    }
 
     #[test]
     fn test_incomplete() {
