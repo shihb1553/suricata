@@ -1,0 +1,18 @@
+[package]
+name = "alproto-coap"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nom7 = { version="7.0", package="nom" }
+hex = "~0.4.3"
+libc = "~0.2.82"
+suricata = { path = "../../../rust/" }
+suricata-sys = { path = "../../../rust/sys" }
+
+[features]
+default = ["suricata8"]
+suricata8 = []

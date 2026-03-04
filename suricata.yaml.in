@@ -80,7 +80,8 @@ stats:
 
 # Plugins -- Experimental -- specify the filename for each plugin shared object
 plugins:
-  @prefix@/lib/@PACKAGE_NAME@/detect_time.so
+  - @prefix@/lib/@PACKAGE_NAME@/alproto_coap.so
+  - @prefix@/lib/@PACKAGE_NAME@/detect_time.so
   @pfring_comment@- @prefix@/lib/@PACKAGE_NAME@/pfring.so
   @napatech_comment@- @prefix@/lib/@PACKAGE_NAME@/napatech.so
   @ndpi_comment@- @prefix@/lib/@PACKAGE_NAME@/ndpi.so
@@ -1154,6 +1155,11 @@ app-layer:
 
     mdns:
       enabled: yes
+
+    coap:
+      enabled: yes
+      detection-ports:
+        dp: 5683
 
 # Limit for the maximum number of asn1 frames to decode (default 256)
 asn1-max-frames: 256
