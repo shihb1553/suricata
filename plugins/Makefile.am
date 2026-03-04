@@ -1,4 +1,4 @@
-SUBDIRS = detect
+SUBDIRS = detect alproto
 
 if BUILD_PFRING
 SUBDIRS += pfring
